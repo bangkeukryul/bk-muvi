@@ -37,6 +37,27 @@
     });
   }
 
+  /* ═════════ 📲 앱 설치 (크롬이 설치할 수 있다고 알려 줄 때만 버튼이 켜져요) ═════════ */
+  let INST = null;
+  const standalone = () => { try { return g.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (e) { return false; } };
+  g.addEventListener('beforeinstallprompt', e => { e.preventDefault(); INST = e; if (!S.p) installBox(); });
+  g.addEventListener('appinstalled', () => { INST = null; toast('📲 설치했어요 · 홈 화면의 BK뮤비 아이콘으로 여세요', 4000); installBox(); });
+  async function installBox() {
+    const el = $('instBox'); if (!el) return;
+    if (standalone()) { el.innerHTML = ''; return; }
+    let have = false; try { if (navigator.getInstalledRelatedApps) have = (await navigator.getInstalledRelatedApps()).length > 0; } catch (e) { /* 모름 */ }
+    if (INST) { el.innerHTML = `<button class="btn ok big" data-a="install">📲 BK뮤비 앱 설치하기</button>`; return; }
+    el.innerHTML = `<details class="note"${have ? ' open' : ''}><summary><b>📲 ${have ? '이 휴대폰에 BK뮤비 앱이 이미 있어요' : '설치 버튼이 안 보이나요?'}</b></summary>
+      <p style="margin:6px 0">크롬은 앱이 <b>이미 설치돼 있으면</b> 설치 버튼을 보여 주지 않고, 덮어쓰기도 안 돼요. 홈 화면에서 지운 건 <b>아이콘만</b> 지운 거라 앱은 남아 있어요. 아래처럼 앱을 지우면 여기에 <b>📲 설치하기</b> 버튼이 나와요.</p>
+      <ol style="padding-left:20px;margin:4px 0">
+        <li>홈 화면에서 <b>위로 쓸어 올려 「앱스 화면」(모든 앱)</b>을 여세요 → <b>BK뮤비</b> 아이콘을 길게 누르기 → <b>설치 삭제</b></li>
+        <li>안 보이면: <b>설정 → 애플리케이션 → 맨 위 🔍 돋보기</b>에 <b>BK뮤비</b> 입력 → 누르기 → <b>삭제</b></li>
+        <li>그래도 없으면: 크롬에서 「클릭하여 앱 열기」로 앱을 연 뒤 <b>최근 앱 버튼(|||)</b> → BK뮤비 화면 위의 <b>작은 아이콘</b> 누르기 → <b>애플리케이션 정보 → 삭제</b></li>
+        <li>크롬을 닫았다가 이 주소를 다시 열면 <b>📲 설치하기</b> 버튼이 나와요</li>
+      </ol>
+      <p class="muted" style="margin:4px 0">✅ 라이선스 · 카드함 · 만든 뮤비는 크롬 안에 있어서 앱을 지워도 그대로예요. ⚠️ 크롬 「쿠키 및 사이트 데이터 삭제」는 하지 마세요.</p></details>`;
+  }
+
   /* ═════════ 관리자 확인 ═════════ */
   function isAdmin() { try { return localStorage.getItem('bkAdmin') === '1'; } catch (e) { return false; } }
 
@@ -53,6 +74,7 @@
     const shown = list.slice((S.page - 1) * PER, S.page * PER);
     root.innerHTML = `
       <div class="note blue" style="margin-top:14px">🎬 <b>노래 한 곡 → 뮤직비디오 한 편</b><br>① 🎼 노래 만들기 → ② 🎵 노래 넣기 → ③ 🎬 장면(Flow) → ④ 🔒 잠금 → ⑤ 🎤 자막 → ⑥ ✨ 효과 → ⑦ ✂️ 최종 편집 순서로 차례차례 만들어요.</div>
+      <div id="instBox"></div>
       <button class="btn main big" data-a="newP">＋ 새 뮤비 만들기</button>
       ${cont ? `<button class="btn pink big contBtn" data-a="openP" data-v="${cont.id}">▶ 이어 만들기<small>「${esc(cont.title || '제목 없음')}」 · ${stName(cont)} 단계부터</small></button>` : ''}
       ${list.length ? `<h3 style="margin:18px 0 0">📂 내 뮤비 <span class="muted">${list.length}개</span></h3>` : ''}
@@ -62,6 +84,7 @@
           <button class="btn sm main" data-a="openP" data-v="${p.id}">열기</button>
           <button class="btn sm ghost" data-a="delP" data-v="${p.id}">🗑</button></div>`).join('') : '<p class="muted" style="text-align:center">아직 만든 뮤비가 없어요.</p>'}</div>
       ${pages > 1 ? `<div class="pager">${S.page > 1 ? `<button data-a="page" data-v="${S.page - 1}">◀</button>` : ''}${Array.from({ length: pages }, (_, i) => `<button class="${i + 1 === S.page ? 'on' : ''}" data-a="page" data-v="${i + 1}">${i + 1}</button>`).join('')}${S.page < pages ? `<button data-a="page" data-v="${S.page + 1}">▶</button>` : ''}</div>` : ''}`;
+    installBox();
   }
 
   async function openP(id) {
@@ -532,6 +555,7 @@
       case 'home': return home();
       case 'newP': { const np = MV.newProject(); await MV.putProject(np); return openP(np.id); }
       case 'openP': return openP(v);
+      case 'install': if (!INST) return installBox(); INST.prompt(); try { await INST.userChoice; } catch (e) { /* 취소 */ } INST = null; return installBox();
       case 'page': S.page = +v; await home(); return g.scrollTo(0, 0);
       case 'delP': { const q = await MV.getProject(v); if (q && confirm(`「${q.title || '제목 없음'}」을(를) 지울까요?\n(이 뮤비에 넣은 노래 · 영상도 BK뮤비 안에서 지워져요)`)) { await MV.delProject(q); home(); } return; }
       case 'go': return go(v);

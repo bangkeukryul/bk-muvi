@@ -43,7 +43,7 @@
   MV.newProject = function () {
     const now = Date.now();
     return {
-      id: 'mv' + now, at: now, title: '', step: 1,
+      id: 'mv' + now, at: now, v: 2, title: '', step: 1, mk: null,
       song: null,              // { file, name, dur }
       lyricsRaw: '', lines: [],// [{ t, s, e }]  s/e: 초 (없으면 null)
       ratio: '16:9', clipLen: 8, mode: 'video',

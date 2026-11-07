@@ -168,7 +168,7 @@
       try { await P.audio.play(); } catch (e) { /* 누르면 재생 */ }
       if (!P.raf) P.raf = requestAnimationFrame(P.loop);
     };
-    P.pause = function () { P.audio.pause(); P.syncVideos(P.time(), false); P.draw(); P.onTime && P.onTime(P.time()); };
+    P.pause = function () { P.audio.pause(); if (!P.p) return; P.syncVideos(P.time(), false); P.draw(); P.onTime && P.onTime(P.time()); };
     P.toggle = () => P.playing() ? P.pause() : P.play();
     P.seek = async function (t) {
       if (!P.p) return; t = clamp(t, 0, (P.p.song && P.p.song.dur) || 0); try { P.audio.currentTime = t; } catch (e) { /* 아직 */ }

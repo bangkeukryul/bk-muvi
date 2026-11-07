@@ -13,7 +13,8 @@
     { n: 3, e: '🎬', t: '장면', h: '장면 만들기 (Flow 영상 · 그림)' },
     { n: 4, e: '🔒', t: '잠금', h: '노래 · 장면 맞춤 잠금' },
     { n: 5, e: '🎤', t: '자막', h: '가사 자막 맞추기' },
-    { n: 6, e: '✂️', t: '편집', h: '최종 편집 · 저장' },
+    { n: 6, e: '✨', t: '효과', h: '효과 넣기' },
+    { n: 7, e: '✂️', t: '편집', h: '최종 편집 · 저장' },
   ];
   const STYLES = ['실사 시네마틱', '감성 애니메이션', '수채화', '3D 애니메이션', '흑백 필름', '레트로 80년대'];
   const MUSIC_URL = 'https://bangkeukryul.github.io/bk-card/music.html';
@@ -47,7 +48,7 @@
     if (!isAdmin()) { root.innerHTML = `<div class="gate"><div class="e">🛠</div><h2>관리자 전용 (준비 중)</h2><p class="muted">BK뮤비는 아직 관리자만 쓸 수 있어요.<br>다른 BK 앱에서 관리자 모드를 켠 휴대폰에서 열어 주세요.</p></div>`; return; }
     const list = await MV.listProjects().catch(() => []);
     root.innerHTML = `
-      <div class="note blue" style="margin-top:14px">🎬 <b>노래 한 곡 → 뮤직비디오 한 편</b><br>① 🎼 노래 만들기 → ② 🎵 노래 넣기 → ③ 🎬 장면(Flow) → ④ 🔒 잠금 → ⑤ 🎤 자막 → ⑥ ✂️ 최종 편집 순서로 차례차례 만들어요.</div>
+      <div class="note blue" style="margin-top:14px">🎬 <b>노래 한 곡 → 뮤직비디오 한 편</b><br>① 🎼 노래 만들기 → ② 🎵 노래 넣기 → ③ 🎬 장면(Flow) → ④ 🔒 잠금 → ⑤ 🎤 자막 → ⑥ ✨ 효과 → ⑦ ✂️ 최종 편집 순서로 차례차례 만들어요.</div>
       <button class="btn main big" data-a="newP">＋ 새 뮤비 만들기</button>
       <div class="plist">${list.length ? list.map(p => `
         <div class="pitem"><div style="font-size:1.6rem">${p.locked ? '🔒' : '🎬'}</div>
@@ -58,17 +59,19 @@
 
   async function openP(id) {
     const p = await MV.getProject(id); if (!p) return toast('작품을 찾을 수 없어요');
-    if (!p.v) { p.step = (p.step || 1) + 1; p.v = 2; MV.putProject(p); }
+    if (!p.v) { p.step = (p.step || 1) + 1; p.v = 2; }
+    if (p.v === 2) { if (p.step >= 6) p.step++; p.v = 3; MV.putProject(p); }
+    MV.fixFx(p);
     S.p = p; S.sel = null; S.tapK = Math.max(0, (p.lines || []).findIndex(l => l.s == null)); if (S.tapK < 0) S.tapK = (p.lines || []).length;
     S.song = p.song ? await MV.getFile(p.song.file) : null;
     $('homeBtn').classList.remove('hide');
     buildEditor();
   }
 
-  /* ═════════ 편집 화면 틀 ═════════ */
+  /* ═════════ 작품 화면: 큰 단계 카드 (BK에딧 첫 화면 모양) → 누르면 그 단계 화면 ═════════ */
   function buildEditor() {
     const root = $('app');
-    root.innerHTML = `<div class="steps" id="steps"></div><div id="stages">${STAGES.map(s => `<section class="stage" id="st${s.n}"><div class="sh" data-a="go" data-v="${s.n}"><h2>${s.e} ${s.n}. ${s.h}</h2><span class="st" id="sts${s.n}"></span></div><div class="sb" id="sb${s.n}"></div></section>`).join('')}</div>`;
+    root.innerHTML = `<div id="hub"></div><div id="stage" class="hide"></div>`;
     if (!S.pv) {
       S.pv = document.createElement('div');
       S.pv.innerHTML = `<div class="pv" id="pvWrap"><canvas id="pvCv"></canvas></div>
@@ -78,6 +81,7 @@
     }
     S.player.audio.volume = Math.min(1, S.p.fx.vol || 1);
     if (S.p.song && S.song) S.player.setProject(S.p, S.song);
+    S.view = 'hub'; S.subs = {};
     render();
   }
   function onTime(t) {
@@ -85,8 +89,10 @@
     const sk = S.pv.querySelector('#pvSeek'); if (sk && document.activeElement !== sk) sk.value = Math.round(t / d * 1000);
     S.pv.querySelector('#pvTm').textContent = fmt0(t) + ' / ' + fmt0(d);
     S.pv.querySelector('#ppBtn').textContent = S.player.playing() ? '⏸' : '▶';
+    if (S.view !== 'stage') return;
     if (S.p.step === 5) tapShow(t);
-    if (S.p.step === 6) tlHead(t);
+    if (S.p.step === 7) tlHead(t);
+    if (S.p.step === 6 && $('fxNow')) $('fxNow').textContent = fmt(t);
   }
 
   function done(n) {
@@ -96,40 +102,68 @@
     if (n === 3) return sc.length > 0 && sc.every(s => s.file);
     if (n === 4) return !!p.locked;
     if (n === 5) return (p.lines || []).length > 0 && p.lines.every(l => l.s != null);
-    if (n === 6) return !!p.exported;
+    if (n === 6) return !!p.fxSeen;
+    if (n === 7) return !!p.exported;
   }
   function status(n) {
     const p = S.p, sc = p.scenes || [];
     if (n === 1) return p.mk && p.mk.out && p.mk.out.title ? '🎵 ' + p.mk.out.title : (p.song ? '건너뜀' : '');
-    if (n === 2) return p.song ? `${fmt0(p.song.dur)} · 가사 ${(p.lines || []).length}줄` : '노래 없음';
+    if (n === 2) return p.song ? `${fmt0(p.song.dur)} · 가사 ${(p.lines || []).length}줄` : '';
     if (n === 3) return sc.length ? `${sc.filter(s => s.file).length}/${sc.length} 채움` : '';
     if (n === 4) return p.locked ? '잠김' : '';
-    if (n === 5) return (p.lines || []).length ? `${p.lines.filter(l => l.s != null).length}/${p.lines.length}줄` : '';
-    if (n === 6) return p.exported ? '저장함' : '';
+    if (n === 5) return (p.lines || []).length ? `${p.lines.filter(l => l.s != null).length}/${p.lines.length}줄 맞춤` : '';
+    if (n === 6) { const k = (p.efx || []).length + (p.stk || []).length + (p.sfx || []).length; return p.fxSeen || k ? `효과 ${k}개` : ''; }
+    if (n === 7) return p.exported ? 'MP4 저장함' : '';
+  }
+  const DESC = { 1: '장르 · 주제 · 이야기 → AI 가사 · 스타일 → 수노에서 노래 만들기', 2: '만든 노래(MP3) · 가사 넣기 · 화면 모양', 3: '장면 칸마다 Flow 영상 · 그림 넣고 노래와 맞춰 보기', 4: '노래 · 장면이 다 맞으면 잠가서 안 틀어지게', 5: '가사 한 줄씩 톡톡 맞추기 · 노래방 자막 모양', 6: '장면 전환 · 색감 · 화면 효과 · 스티커 · 효과음 · 제목', 7: '화면 · 음악 · 자막 · 효과 줄로 다듬고 MP4 저장' };
+  function nextTodo() { for (const s of STAGES) if (!done(s.n)) return s.n; return 7; }
+  function renderHub() {
+    const p = S.p, nx = nextTodo(), nd = STAGES.filter(s => done(s.n)).length;
+    $('hub').innerHTML = `
+      <div class="hubTop"><input type="text" id="fTitle2" value="${esc(p.title)}" placeholder="🏷 뮤비 제목"><div class="prog"><i style="width:${Math.round(nd / STAGES.length * 100)}%"></i></div><span class="muted">${STAGES.length}단계 중 ${nd}단계 끝 · 위에서부터 차례로 해요</span></div>
+      <div class="modes">${STAGES.map(s => `
+        <button type="button" class="mode g${s.n}${s.n === nx ? ' todo' : ''}" data-a="open" data-v="${s.n}">
+          <span class="ic">${done(s.n) ? '✅' : s.e}</span><b>${s.n}. ${s.h}</b>
+          <small>${status(s.n) ? '<span class="stt">' + esc(status(s.n)) + '</span> · ' : ''}${DESC[s.n]}</small>
+          ${s.n === nx ? '<i class="todoTag">👉 지금 할 차례</i>' : ''}</button>`).join('')}</div>`;
+  }
+  function renderStage() {
+    const p = S.p, n = p.step, st = STAGES[n - 1], el = $('stage');
+    el.innerHTML = `<div class="stHead"><button class="btn sm ghost" data-a="hub">◀ 전체 단계</button><div class="stT"><span>${n} / ${STAGES.length}</span><b>${st.e} ${st.h}</b></div></div><div class="stBody">${BODY[n]()}</div>
+      <div class="stNav">${n > 1 ? `<button class="btn ghost" data-a="open" data-v="${n - 1}">◀ ${STAGES[n - 2].e} ${STAGES[n - 2].t}</button>` : '<span></span>'}${n < STAGES.length ? `<button class="btn main" data-a="open" data-v="${n + 1}" data-next="1">다음: ${STAGES[n].e} ${STAGES[n].t} ▶</button>` : `<button class="btn main" data-a="hub">✅ 전체 단계로</button>`}</div>`;
+    /* 작은 단계(소단계): data-sub 묶음이 2개 이상이면 위에 번호 버튼 · 하나씩 보여 주기 */
+    const subs = [...el.querySelectorAll('.stBody [data-sub]')];
+    if (subs.length > 1) {
+      let k = clamp(S.subs[n] || 0, 0, subs.length - 1); S.subs[n] = k;
+      const bar = document.createElement('div'); bar.className = 'subbar';
+      bar.innerHTML = subs.map((d, i) => `<button type="button" class="${i === k ? 'on' : ''}" data-a="sub" data-v="${i}">${esc(d.dataset.sub)}</button>`).join('');
+      subs[0].parentNode.insertBefore(bar, subs[0]);
+      subs.forEach((d, i) => { d.classList.toggle('hide', i !== k); if (i < subs.length - 1) { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn big subnext'; b.dataset.a = 'sub'; b.dataset.v = i + 1; b.textContent = `다음: ${subs[i + 1].dataset.sub} ▶`; d.appendChild(b); } });
+    }
+    const slot = el.querySelector('[data-pv]');
+    if (slot && p.song) { slot.appendChild(S.pv); S.pv.querySelector('#pvWrap').classList.toggle('v916', p.ratio === '9:16'); S.player.refresh(); S.player.draw(); onTime(S.player.time()); }
+    else if (S.player) { S.player.pause(); if (S.pv.parentNode) S.pv.remove(); }
+    if (n === 7) tlBuild();
+    if (n === 5) tapShow(S.player ? S.player.time() : 0);
   }
   function render() {
     const p = S.p; if (!p) return;
     $('title').textContent = '🎬 ' + (p.title || 'BK뮤비');
-    $('steps').innerHTML = STAGES.map(s => `<button class="${p.step === s.n ? 'on' : ''} ${done(s.n) ? 'done' : ''}" data-a="go" data-v="${s.n}"><b>${done(s.n) && p.step !== s.n ? '✅' : s.e}</b>${s.n}. ${s.t}</button>`).join('');
-    STAGES.forEach(s => {
-      const el = $('st' + s.n); el.classList.toggle('open', p.step === s.n); el.classList.toggle('done', !!done(s.n));
-      $('sts' + s.n).textContent = status(s.n) || '';
-      $('sb' + s.n).innerHTML = p.step === s.n ? BODY[s.n]() : '';
-    });
-    const slot = document.querySelector('#sb' + p.step + ' [data-pv]');
-    if (slot && p.song) { slot.appendChild(S.pv); S.pv.querySelector('#pvWrap').classList.toggle('v916', p.ratio === '9:16'); S.player.refresh(); S.player.draw(); onTime(S.player.time()); }
-    else if (S.player) { S.player.pause(); if (S.pv.parentNode) S.pv.remove(); }
-    if (p.step === 6) tlBuild();
-    if (p.step === 5) tapShow(S.player ? S.player.time() : 0);
+    const hub = S.view !== 'stage';
+    $('hub').classList.toggle('hide', !hub); $('stage').classList.toggle('hide', hub);
+    if (hub) { if (S.player) S.player.pause(); if (S.pv && S.pv.parentNode) S.pv.remove(); renderHub(); } else renderStage();
   }
   function go(n) {
     const p = S.p; n = +n;
     if (n > 2 && !p.song) { toast('🎵 먼저 노래를 넣어 주세요'); n = 2; }
     if (n === 3 && !p.scenes.length) p.scenes = MV.planScenes(p);
-    p.step = n; save(); render();
-    setTimeout(() => { const el = $('st' + n); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 30);
+    const was = S.view; p.step = n; S.view = 'stage'; save(); render();
+    if (was !== 'stage') { try { history.pushState({ mv: 1 }, ''); } catch (e) { /* 괜찮음 */ } }
+    g.scrollTo(0, 0);
   }
-  const nextBtn = (n, label) => `<button class="btn main big next" data-a="go" data-v="${n + 1}">${label || '✅ 다음 단계로 ▶'}</button>`;
+  function toHub() { S.view = 'hub'; render(); g.scrollTo(0, 0); }
+  g.addEventListener('popstate', () => { if (S.p && S.view === 'stage') toHub(); });
+  const nextBtn = () => '';
 
   /* ═════════ 1. 노래 ═════════ */
   const BODY = {};
@@ -138,19 +172,19 @@
     const p = S.p, L = p.lines || [], timed = L.filter(l => l.s != null).length;
     return `
       <div class="field"><label>🏷 뮤비 제목 (노래 제목)</label><input type="text" id="fTitle" value="${esc(p.title)}" placeholder="예: 봄날의 약속"></div>
-      <div class="sub"><h3>🎵 노래 넣기</h3>
+      <div class="sub" data-sub="① 노래 파일"><h3>🎵 노래 넣기</h3>
         ${p.song ? `<div class="song"><div class="ic">🎧</div><div style="flex:1;min-width:0"><b>${esc(p.song.name)}</b><div class="muted">길이 ${fmt0(p.song.dur)}</div><audio controls preload="none" id="songAu"></audio></div></div>` : '<p class="muted">아직 노래가 없어요.</p>'}
         <div class="row" style="margin-top:8px"><button class="btn main" data-a="pickSong">📂 내 MP3 고르기</button><button class="btn" data-a="musicBox">🎼 BK뮤직 노래함에서</button></div>
         <div id="boxList"></div>
         <p class="muted">✍️ 새 노래를 만들려면 <a href="${MUSIC_URL}" target="_blank" rel="noopener">BK뮤직</a>에서 만들어 「💾 내 노래함」에 노래 파일까지 저장한 뒤, 여기서 「🎼 BK뮤직 노래함에서」를 누르세요.</p>
         <div class="note">⚠️ 다른 가수의 노래는 <b>내가 가진 MP3</b>만 쓸 수 있어요. 유튜브에 올리면 저작권 신고가 들어올 수 있어요.</div>
       </div>
-      <div class="sub"><h3>📝 가사</h3>
+      <div class="sub" data-sub="② 가사"><h3>📝 가사</h3>
         <div class="field"><textarea id="fLyr" placeholder="가사를 붙여 넣으세요 (한 줄씩)&#10;[00:15] 처럼 시간이 붙어 있으면 자막 시간도 같이 들어가요">${esc(p.lyricsRaw)}</textarea></div>
         <div class="row"><button class="btn main" data-a="lyrApply">✅ 가사 넣기</button><button class="btn" data-a="lyrAI">🤖 Gemini에게 가사 시간 받기</button></div>
         <p class="muted">${L.length ? `가사 ${L.length}줄 들어 있어요${timed ? ` · 시간 맞춘 줄 ${timed}줄` : ''}` : '가사를 넣으면 장면마다 그 시간의 가사가 보여요.'}<br>🤖 버튼: 요청 글이 복사되고 Gemini가 열려요 → ＋로 MP3 올리기 → 붙여넣기 → 보내기 → 받은 답을 위 칸에 붙여넣고 「✅ 가사 넣기」</p>
       </div>
-      <div class="sub"><h3>📐 화면 모양</h3>
+      <div class="sub" data-sub="③ 화면 모양"><h3>📐 화면 모양</h3>
         <div class="cards"><button class="card${p.ratio === '16:9' ? ' on' : ''}" data-a="ratio" data-v="16:9"><span class="e">🖥</span>가로 16:9<small>유튜브 뮤직비디오</small></button><button class="card${p.ratio === '9:16' ? ' on' : ''}" data-a="ratio" data-v="9:16"><span class="e">📱</span>세로 9:16<small>쇼츠 · 릴스</small></button></div>
       </div>
       ${nextBtn(2, '✅ 다음 단계로 ▶ 장면 만들기')}`;
@@ -214,20 +248,21 @@
     return `<div data-pv></div>
       ${L ? `<div class="note red">🔒 잠겨 있어요 — 장면을 바꾸려면 <button class="btn sm" data-a="unlock">🔓 잠금 풀기</button></div>` : ''}
       <div class="note blue">🎵 ${fmt0(p.song.dur)} 노래 → <b>장면 ${sc.length}개</b> (한 장면 약 ${p.clipLen}초)</div>
-      <div class="field"><label>⏱ 장면 하나 길이</label><div class="chips">${[4, 6, 8, 10].map(v => chip('clipLen', v, p.clipLen === v, v + '초' + (v === 8 ? ' (Flow)' : ''))).join('')}</div></div>
+      <div data-sub="① 길이 · 분위기"><div class="field"><label>⏱ 장면 하나 길이</label><div class="chips">${[4, 6, 8, 10].map(v => chip('clipLen', v, p.clipLen === v, v + '초' + (v === 8 ? ' (Flow)' : ''))).join('')}</div></div>
       <div class="field"><label>🛠 만드는 방법</label><div class="chips">${chip('mode', 'video', vid, '🎬 영상 (Flow)')}${chip('mode', 'image', !vid, '🖼 그림 · 사진')}</div></div>
       <div class="sub"><h3>🎨 전체 분위기 <span class="muted">(모든 장면 글에 똑같이 들어가요)</span></h3>
         <div class="chips">${STYLES.map(s => chip('style', s, lk.style === s, s)).join('')}</div>
         <div class="field"><label>💭 노래 분위기</label><input type="text" id="fMood" value="${esc(lk.mood)}" placeholder="예: 봄 햇살, 그리움, 따뜻한 재회"></div>
         <div class="field"><label>🧑 주인공 (같은 사람이 계속 나오게)</label><input type="text" id="fHero" value="${esc(lk.hero)}" placeholder="예: 20대 여성, 긴 생머리, 하얀 원피스"></div>
       </div>
-      <div class="sub"><h3>🤖 장면 글 한꺼번에 받기 (추천)</h3>
+      </div>
+      <div class="sub" data-sub="② 장면 글 받기"><h3>🤖 장면 글 한꺼번에 받기 (추천)</h3>
         <p class="muted">① 아래 버튼 → 요청 글이 복사되고 Gemini가 열려요 → 붙여넣고 보내기<br>② 받은 답을 통째로 복사해서 아래 칸에 붙여넣기 → 「✅ 장면 글 넣기」</p>
         <div class="row"><button class="btn main" data-a="planAI">📋 요청 복사 + Gemini 열기</button></div>
         <div class="field"><textarea id="fPlan" placeholder="S1: …&#10;S2: …" style="min-height:80px"></textarea></div>
         <button class="btn" data-a="planIn">✅ 장면 글 넣기</button>
       </div>
-      <div class="sub"><h3>🎞 장면 칸 · 채움 ${filled}/${sc.length} · 👍 ${oks}</h3>
+      <div class="sub" data-sub="③ 장면 채우기"><h3>🎞 장면 칸 · 채움 ${filled}/${sc.length} · 👍 ${oks}</h3>
         <p class="muted">장면마다: 📋 글 복사 → ${vid ? 'Flow에서 영상 만들기 → 내려받기' : '그림 AI에서 그림 만들기 → 저장'} → 📂 넣기 → ▶ 들어 보고 분위기가 맞으면 👍</p>
         <div class="row"><button class="btn" data-a="flow">🌊 Flow 열기</button><button class="btn" data-a="bulk"${dis}>📥 여러 개 한꺼번에 넣기</button></div>
         <div class="grid">${sc.map((s, i) => { const ly = MV.sceneLines(p, s); return `
@@ -255,7 +290,7 @@
       <button class="btn big" data-a="playAll">▶ 처음부터 끝까지 보기</button>
       <div class="note ${empty.length ? 'red' : 'blue'}">장면 ${sc.length}개 중 채움 ${sc.length - empty.length}개 · 👍 ${oks}개${empty.length ? `<br>⚠️ 빈 장면: ${empty.join(', ')}번 (3단계에서 넣어 주세요)` : ''}</div>
       ${p.locked ? `<div class="note blue">🔒 노래 · 장면이 잠겨 있어요. 이제 자막을 맞춰도 장면이 안 틀어져요.</div><div class="row"><button class="btn sm ghost" data-a="unlock">🔓 잠금 풀기</button></div>${nextBtn(4, '✅ 다음 단계로 ▶ 자막 맞추기')}`
-        : `<p class="muted">노래와 장면이 잘 맞으면 잠가 두세요. 잠그면 장면 순서 · 시간 · 영상이 실수로 바뀌지 않아요.<br>(6단계 최종 편집에서는 일부러 고칠 수 있어요)</p>
+        : `<p class="muted">노래와 장면이 잘 맞으면 잠가 두세요. 잠그면 장면 순서 · 시간 · 영상이 실수로 바뀌지 않아요.<br>(7단계 최종 편집에서는 일부러 고칠 수 있어요)</p>
         <button class="btn main big next" data-a="lockNext">🔒 잠그고 다음 단계로 ▶</button>`}`;
   };
 
@@ -266,7 +301,7 @@
     const nT = L.filter(l => l.s != null).length;
     return `<div data-pv></div>
       ${nT === L.length ? '<div class="note blue">✅ 모든 줄에 시간이 들어 있어요. ▶ 로 확인하고, 어긋난 줄만 아래 「줄마다 다듬기」에서 고치세요.</div>' : ''}
-      <div class="tap">
+      <div class="tap" data-sub="① 톡톡 맞추기">
         <div class="muted" id="tapCnt"></div>
         <div class="now" id="tapNow"></div>
         <div class="nx" id="tapNx"></div>
@@ -274,16 +309,17 @@
         <div class="row" style="margin-top:8px"><button class="btn main" data-a="tapStart">▶ ${nT && nT < L.length ? '이어서 맞추기' : '처음부터 맞추기'}</button><button class="btn" data-a="tapBack">↩ 한 줄 뒤로</button><button class="btn" data-a="tapEnd">✋ 여기서 자막 끄기</button></div>
         <p class="muted">노래를 들으며 <b>노란 줄을 부르기 시작할 때 톡</b>. 반주만 나오는 부분(간주)에서는 ✋ 를 누르면 자막이 꺼져요.</p>
       </div>
-      <details class="sub"><summary><b>🔧 줄마다 다듬기 (${nT}/${L.length}줄 맞춤)</b></summary>
+      <div class="sub" data-sub="② 줄마다 다듬기"><h3>🔧 줄마다 다듬기 (${nT}/${L.length}줄 맞춤)</h3>
         <div class="lines">${L.map((l, i) => `<div class="ln" id="ln${i}"><span class="t${l.s == null ? ' no' : ''}">${l.s == null ? '--:--' : fmt(l.s)}</span><span class="x" data-a="lnText" data-v="${i}">${esc(l.t)}</span><button class="btn sm" data-a="lnNudge" data-v="${i}:-0.1">−</button><button class="btn sm" data-a="lnNudge" data-v="${i}:0.1">＋</button><button class="btn sm" data-a="lnNow" data-v="${i}">⏱</button><button class="btn sm main" data-a="lnPlay" data-v="${i}">▶</button></div>`).join('')}</div>
         <p class="muted">− ＋ : 0.1초씩 · ⏱ : 지금 재생 위치로 · 글자를 누르면 고치기</p>
-      </details>
-      <div class="sub"><h3>🎨 자막 모양</h3>
+      </div>
+      <div class="sub" data-sub="③ 자막 모양"><h3>🎨 자막 모양</h3>
         <div class="cards">
           ${[['karaoke', '🎤', '노래방', '부르는 대로 색이 차요'], ['two', '📝', '노래방 두 줄', '다음 줄도 미리 보여요'], ['line', '💬', '한 줄', '깔끔한 흰 글씨'], ['none', '🚫', '자막 없음', '']].map(a => `<button class="card${c.style === a[0] ? ' on' : ''}" data-a="capStyle" data-v="${a[0]}"><span class="e">${a[1]}</span>${a[2]}<small>${a[3]}</small></button>`).join('')}
         </div>
         <div class="field"><label>위치</label><div class="chips">${[['bottom', '⬇ 아래'], ['middle', '⏺ 가운데'], ['top', '⬆ 위']].map(a => chip('capPos', a[0], c.pos === a[0], a[1])).join('')}</div></div>
         <div class="field"><label>크기</label><div class="chips">${[[.8, '작게'], [1, '보통'], [1.25, '크게']].map(a => chip('capSize', a[0], c.size === a[0], a[1])).join('')}</div></div>
+        <div class="field"><label>글꼴</label><div class="chips">${[['noto', '본고딕'], ['blackhan', '검은고딕'], ['jua', '주아'], ['dohyeon', '도현'], ['gowunbatang', '명조'], ['nanumpen', '손글씨']].map(a => chip('capFont', a[0], (c.font || 'noto') === a[0], a[1])).join('')}</div></div>
         <div class="field"><label>채우는 색</label><div class="chips">${[['#ffe14d', '🟡'], ['#7dd3fc', '🔵'], ['#f9a8d4', '🩷'], ['#86efac', '🟢'], ['#fca5a5', '🔴']].map(a => chip('capColor', a[0], c.color === a[0], a[1])).join('')}</div></div>
       </div>
       ${nextBtn(5, '✅ 다음 단계로 ▶ 최종 편집')}`;
@@ -298,19 +334,107 @@
   function linesChanged() { S.player.refresh(); if (!S.player.playing()) S.player.draw(); save(); }
 
   /* ═════════ 5. 최종 편집 ═════════ */
-  BODY[6] = function () {
+  BODY[7] = function () {
     return `<div data-pv></div>
-      <div class="note blue">아래 줄(🎬 화면 · 🎵 음악 · 💬 자막 · ✨ 효과)에서 고칠 것을 누르세요. 빈 곳을 누르면 그 위치로 가요.</div>
+      <div data-sub="① ✂️ 다듬기"><div class="note blue">아래 줄(🎬 화면 · 🎵 음악 · 💬 자막 · ✨ 효과)에서 고칠 것을 누르세요. 빈 곳을 누르면 그 위치로 가요.</div>
       <div class="tl" id="tl"><div class="in" id="tlIn"></div></div>
       <div class="zoom"><button class="btn sm" data-a="zoom" data-v="-1">🔍−</button><button class="btn sm" data-a="zoom" data-v="1">🔍＋</button><span class="muted">타임라인 크기</span></div>
-      <div class="panel" id="panel">${panel()}</div>
-      <div class="sub"><h3>💾 MP4로 저장</h3>
+      <div class="panel" id="panel">${panel()}</div></div>
+      <div class="sub" data-sub="② 💾 저장"><h3>💾 MP4로 저장</h3>
         <div class="chips">${chip('q', 720, S.q === 720, '720p (빠르게)')}${chip('q', 1080, S.q === 1080, '1080p (선명하게)')}</div>
         <p class="muted">만드는 동안 화면을 켜 두세요. 3분 노래는 몇 분 걸려요.</p>
         <button class="btn pink big" data-a="export" id="expBtn">💾 뮤직비디오 만들기</button>
         <div id="expBox"></div>
       </div>`;
   };
+  /* ═════════ 6. ✨ 효과 (BK에딧 · BK쇼츠 효과 모음 fx.js) ═════════ */
+  const FXL = { len: 3, pos: 'mc', size: 1 };
+  const POS = { tl: [.2, .18], tc: [.5, .18], tr: [.8, .18], ml: [.2, .5], mc: [.5, .5], mr: [.8, .5], bl: [.2, .78], bc: [.5, .78], br: [.8, .78] };
+  const tnow = () => +(S.player ? S.player.time() : 0).toFixed(2);
+  function itemRows(kind) {
+    const p = S.p, F = g.BKFX, A = p[kind] || [];
+    if (!A.length) return '<p class="muted">아직 없어요.</p>';
+    return `<div class="lines">${A.map((it, i) => {
+      const name = kind === 'efx' ? F.EFX[it.k] : kind === 'sfx' ? F.SFX[it.k] : (it.e || (it.b === 'bk' ? '🅑 BK 로고' : '🔤 ' + (it.t || '')));
+      const tm = kind === 'sfx' ? fmt(it.at) : `${fmt(it.start)}~${fmt(it.start + it.dur)}`;
+      return `<div class="ln"><span class="t">${tm}</span><span class="x">${esc(name)}</span><button class="btn sm" data-a="itPlay" data-v="${kind}:${i}">▶</button><button class="btn sm ghost" data-a="itDel" data-v="${kind}:${i}">🗑</button></div>`; }).join('')}</div>`;
+  }
+  BODY[6] = function () {
+    const p = S.p, f = p.fx, F = g.BKFX; if (!F) return '<p class="muted">효과를 불러오는 중…</p>';
+    const nCh = (p.lines || []).filter(l => l.sec === 'chorus' && l.s != null).length;
+    return `<div data-pv></div>
+      <div class="note blue">📍 지금 위치 <b id="fxNow">${fmt(tnow())}</b> — 화면 효과 · 스티커 · 효과음은 <b>지금 위치</b>에 들어가요. 미리 보기 아래 막대로 위치를 옮기세요.</div>
+      <div data-sub="① 🔀 장면 전환">
+        <p class="muted">장면이 바뀔 때 넘어가는 모양 (모든 장면)</p>
+        <div class="chips">${Object.entries(F.TRANS).map(([k, t]) => chip('fxTrans', k, (f.trans || 'fade') === k, t)).join('')}</div>
+        <div class="field"><label>넘어가는 시간</label><div class="chips">${[[.3, '⚡ 빠르게'], [.6, '보통'], [1, '🐢 천천히']].map(a => chip('fxTdur', a[0], f.tdur === a[0], a[1])).join('')}</div></div>
+        <div class="row"><button class="btn" data-a="fxMix">🎲 장면마다 골고루 섞기</button><button class="btn ghost" data-a="fxMixOff">↩ 모두 같게</button></div>
+        <p class="muted">장면 하나만 바꾸려면 7단계 편집에서 그 장면을 누르세요.</p>
+      </div>
+      <div data-sub="② 🎨 색감 · 필름">
+        <div class="field"><label>🎨 색감 (모든 장면)</label><div class="chips">${Object.entries(F.FILTERS).map(([k, v]) => chip('fxColor', k, (f.color || 'none') === k, v[0])).join('')}</div></div>
+        <div class="field"><label>🎞 필름 느낌</label><div class="chips">${[['none', '없음'], ['cinema', '🎞 시네마 띠'], ['vintage', '📼 빈티지'], ['vivid', '🌈 선명하게']].map(a => chip('film', a[0], f.film === a[0], a[1])).join('')}</div></div>
+        <div class="field"><label>🖼 사진 천천히 확대</label><div class="chips">${chip('zoomImg', 1, f.zoom, '켜기')}${chip('zoomImg', 0, !f.zoom, '끄기')}</div></div>
+      </div>
+      <div data-sub="③ ✨ 화면 효과">
+        <div class="field"><label>얼마 동안</label><div class="chips">${[[1, '1초'], [3, '3초'], [5, '5초'], [10, '10초'], [0, '노래 끝까지']].map(a => chip('fxLen', a[0], FXL.len === a[0], a[1])).join('')}</div></div>
+        <p class="muted">👇 누르면 📍 지금 위치에 들어가요</p>
+        <div class="chips">${Object.entries(F.EFX).map(([k, t]) => chip('efxAdd', k, false, t)).join('')}</div>
+        <div class="sub"><h3>🎤 후렴에 맞춰 한 번에</h3>
+          ${nCh ? `<div class="row"><button class="btn" data-a="efxChorus" data-v="punch">💥 후렴마다 확 줌인</button><button class="btn" data-a="efxChorus" data-v="flash">⚡ 후렴마다 번쩍</button></div>` : '<p class="muted">가사에 [Chorus] 표시가 있고 자막 시간을 맞추면 후렴마다 한 번에 넣을 수 있어요.</p>'}
+        </div>
+        <div class="sub"><h3>들어간 화면 효과</h3>${itemRows('efx')}</div>
+      </div>
+      <div data-sub="④ 😀 스티커">
+        <div class="field"><label>위치</label><div class="pos9">${Object.keys(POS).map(k => `<button type="button" class="${FXL.pos === k ? 'on' : ''}" data-a="fxPos" data-v="${k}"></button>`).join('')}</div></div>
+        <div class="field"><label>크기 · 얼마 동안</label><div class="chips">${[[.7, '작게'], [1, '보통'], [1.5, '크게']].map(a => chip('fxSize', a[0], FXL.size === a[0], a[1])).join('')} ${[[2, '2초'], [3, '3초'], [5, '5초']].map(a => chip('fxLen', a[0], FXL.len === a[0], a[1])).join('')}</div></div>
+        <p class="muted">👇 누르면 📍 지금 위치에 들어가요</p>
+        <div class="emo">${F.EMOJI.map(e => `<button type="button" data-a="stkAdd" data-v="${e}">${e}</button>`).join('')}</div>
+        <div class="row" style="margin-top:6px"><button class="btn" data-a="stkAdd" data-v="b:text">🔤 글씨 상자</button><button class="btn" data-a="stkAdd" data-v="b:bk">🅑 BK 로고</button></div>
+        <div class="sub"><h3>들어간 스티커</h3>${itemRows('stk')}</div>
+      </div>
+      <div data-sub="⑤ 🔔 효과음">
+        <p class="muted">👇 누르면 소리를 들려주고 📍 지금 위치에 들어가요 (앱이 직접 만드는 소리라 저작권 걱정 없어요)</p>
+        <div class="chips">${Object.entries(F.SFX).map(([k, t]) => chip('sfxAdd', k, false, t)).join('')}</div>
+        <div class="field"><label>효과음 크기</label><div class="chips">${[[.4, '작게'], [.8, '보통'], [1.2, '크게']].map(a => chip('sfxVol', a[0], f.sfxVol === a[0], a[1])).join('')}</div></div>
+        <div class="sub"><h3>들어간 효과음</h3>${itemRows('sfx')}</div>
+      </div>
+      <div data-sub="⑥ 🎬 처음 · 끝">${startEnd()}</div>`;
+  };
+  function startEnd() {
+    const f = S.p.fx;
+    return `<div class="row"><span class="lbl">처음 제목</span><div class="chips">${chip('intro', 1, f.intro, '켜기')}${chip('intro', 0, !f.intro, '끄기')}</div></div>
+      ${f.intro ? `<div class="field"><input type="text" id="fIntro" value="${esc(f.introText || '')}" placeholder="제목 (비우면 뮤비 제목)"></div><div class="field"><input type="text" id="fIntroSub" value="${esc(f.introSub || '')}" placeholder="작은 글 (예: 노래 · 부른 사람)"></div>` : ''}
+      <div class="row"><span class="lbl">엔딩 글</span><div class="chips">${chip('outro', 1, f.outro, '켜기')}${chip('outro', 0, !f.outro, '끄기')}</div></div>
+      ${f.outro ? `<div class="field"><input type="text" id="fOutro" value="${esc(f.outroText || '')}" placeholder="예: 들어 주셔서 감사합니다"></div>` : ''}
+      <div class="row"><span class="lbl">처음 밝아지기</span><div class="chips">${[[0, '없음'], [1, '1초'], [2, '2초']].map(a => chip('fadeIn', a[0], f.fadeIn === a[0], a[1])).join('')}</div></div>
+      <div class="row"><span class="lbl">끝 어두워지기</span><div class="chips">${[[0, '없음'], [1.5, '1.5초'], [2.5, '2.5초'], [4, '4초']].map(a => chip('fadeOut', a[0], f.fadeOut === a[0], a[1])).join('')}</div></div>`;
+  }
+  function fxRefresh() { S.player.refresh(); if (!S.player.playing()) S.player.seek(S.player.time()); save(); if (S.p.step === 7) { tlBuild(); $('panel').innerHTML = panel(); } else renderStage(); }
+  function fxAct(a, v) {
+    if (!/^(fx|efx|stk|sfx|it)/.test(a)) return null;
+    const p = S.p, F = g.BKFX, dur = p.song ? p.song.dur : 0, t = tnow();
+    switch (a) {
+      case 'fxTrans': p.fx.trans = v; return fxRefresh();
+      case 'fxTdur': p.fx.tdur = +v; return fxRefresh();
+      case 'fxMix': { const K = ['fade', 'zoom', 'slide', 'white', 'circle', 'wipe', 'blur', 'up', 'black']; p.scenes.forEach((s, i) => { s.tr = i ? K[(i * 5) % K.length] : ''; }); toast('🎲 장면마다 다른 전환을 넣었어요'); return fxRefresh(); }
+      case 'fxMixOff': p.scenes.forEach(s => { s.tr = ''; }); toast('↩ 모든 장면을 같은 전환으로'); return fxRefresh();
+      case 'fxColor': p.fx.color = v; return fxRefresh();
+      case 'fxLen': FXL.len = +v; return renderStage();
+      case 'fxPos': FXL.pos = v; return renderStage();
+      case 'fxSize': FXL.size = +v; return renderStage();
+      case 'efxAdd': { const d = FXL.len ? Math.min(FXL.len, dur - t) : dur - t; p.efx.push({ k: v, start: t, dur: F.EFX_DUR[v] && FXL.len > F.EFX_DUR[v] ? F.EFX_DUR[v] : Math.max(.3, d) }); toast(`${F.EFX[v]} · ${fmt(t)}에 넣었어요`); return fxRefresh(); }
+      case 'efxChorus': { const L = p.lines || []; let n = 0; L.forEach((l, i) => { if (l.sec === 'chorus' && l.s != null && (!L[i - 1] || L[i - 1].sec !== 'chorus')) { p.efx.push({ k: v, start: l.s, dur: F.EFX_DUR[v] || .8 }); n++; } }); toast(n ? `🎤 후렴 ${n}곳에 넣었어요` : '후렴을 못 찾았어요'); return fxRefresh(); }
+      case 'stkAdd': { const [x, y] = POS[FXL.pos], it = { start: t, dur: Math.min(FXL.len || 3, dur - t), x, y, size: FXL.size };
+        if (v.startsWith('b:')) { it.b = v.slice(2); if (it.b === 'text') { const tx = prompt('상자에 넣을 글씨', ''); if (!tx) return; it.t = tx; } } else it.e = v;
+        p.stk.push(it); toast('😀 스티커를 넣었어요 · ' + fmt(t)); return fxRefresh(); }
+      case 'sfxAdd': S.player.sfx(v); p.sfx.push({ k: v, at: t }); p.sfx.sort((a2, b2) => a2.at - b2.at); toast(`${F.SFX[v]} · ${fmt(t)}에 넣었어요`); return fxRefresh();
+      case 'sfxVol': p.fx.sfxVol = +v; return fxRefresh();
+      case 'itDel': { const [k, i] = v.split(':'); p[k].splice(+i, 1); if (S.sel && S.sel.k === k) S.sel = null; return fxRefresh(); }
+      case 'itPlay': { const [k, i] = v.split(':'), it = p[k][+i]; const st = k === 'sfx' ? it.at : it.start; return S.player.play(Math.max(0, st - 1), st + (k === 'sfx' ? 2 : Math.min(it.dur, 6)) + .5); }
+    }
+    return null;
+  }
   const COLORS = ['#7c3aed', '#db2777', '#2563eb', '#0d9488', '#ea580c', '#4f46e5'];
   function tlBuild() {
     const p = S.p, inn = $('tlIn'); if (!inn) return;
@@ -322,7 +446,11 @@
     h += trk(96, '💬', CL.map(c => `<div class="blk${S.sel && S.sel.k === 'ly' && S.sel.i === c.i ? ' sel' : ''}" data-tl="ly:${c.i}" style="left:${c.s * px}px;width:${Math.max(6, (c.e - c.s) * px)}px;background:#ca8a04">${esc(c.t)}</div>`).join(''));
     const fx = p.fx, F = [];
     if (fx.fadeIn) F.push([0, fx.fadeIn, '어둠→']); if (fx.intro) F.push([.3, 4, '제목']); if (fx.outro && fx.outroText) F.push([dur - 5, dur, '엔딩 글']); if (fx.fadeOut) F.push([dur - fx.fadeOut, dur, '→어둠']);
-    h += trk(136, '✨', `<div class="blk" data-tl="fx:0" style="left:0;width:${dur * px}px;background:#1e293b;color:#94a3b8">${fx.film !== 'none' ? '🎞 ' + ({ cinema: '시네마 띠', vintage: '빈티지', vivid: '선명하게' }[fx.film] || '') : ''}</div>` + F.map(f => `<div class="blk${S.sel && S.sel.k === 'fx' ? ' sel' : ''}" data-tl="fx:0" style="left:${f[0] * px}px;width:${Math.max(8, (f[1] - f[0]) * px)}px;background:#9333ea">${f[2]}</div>`).join(''));
+    const EC = { efx: '#9333ea', stk: '#db2777', sfx: '#ca8a04' };
+    h += trk(136, '✨', `<div class="blk" data-tl="fx:0" style="left:0;width:${dur * px}px;background:#1e293b;color:#94a3b8"></div>` + F.map(f => `<div class="blk${S.sel && S.sel.k === 'fx' ? ' sel' : ''}" data-tl="fx:0" style="left:${f[0] * px}px;width:${Math.max(8, (f[1] - f[0]) * px)}px;background:#475569">${f[2]}</div>`).join('')
+      + (p.efx || []).map((e, i) => `<div class="blk${S.sel && S.sel.k === 'efx' && S.sel.i === i ? ' sel' : ''}" data-tl="efx:${i}" style="left:${e.start * px}px;width:${Math.max(10, e.dur * px)}px;background:${EC.efx};height:16px">${(g.BKFX.EFX[e.k] || '').split(' ')[0]}</div>`).join('')
+      + (p.stk || []).map((e, i) => `<div class="blk${S.sel && S.sel.k === 'stk' && S.sel.i === i ? ' sel' : ''}" data-tl="stk:${i}" style="left:${e.start * px}px;width:${Math.max(10, e.dur * px)}px;background:${EC.stk};top:17px;height:17px">${e.e || '🔤'}</div>`).join('')
+      + (p.sfx || []).map((e, i) => `<div class="blk${S.sel && S.sel.k === 'sfx' && S.sel.i === i ? ' sel' : ''}" data-tl="sfx:${i}" style="left:${e.at * px}px;width:14px;background:${EC.sfx};top:17px;height:17px;padding:0">🔔</div>`).join(''));
     h += `<div class="ph" id="tlPh"></div>`;
     inn.style.width = W + 'px'; inn.innerHTML = h; tlHead(S.player.time());
   }
@@ -338,7 +466,7 @@
         ${i < p.scenes.length - 1 ? `<div class="row"><span class="lbl">끝 옮기기</span>${nud('scB', i + 1, [-0.5, -0.1, 0.1, 0.5])}</div>` : ''}
         ${sc.kind === 'video' ? `<div class="row"><span class="lbl">영상 시작점</span>${nud('scOff', i, [-1, -0.5, 0.5, 1])}<span class="muted">${(sc.off || 0).toFixed(1)}초부터</span></div>` : ''}
         <div class="row"><span class="lbl">효과</span><div class="chips">${[['', '기본'], ['zoomin', '🔍 확대'], ['zoomout', '🔎 축소'], ['still', '⏸ 고정'], ['bw', '⚫ 흑백'], ['warm', '🌅 따뜻하게'], ['bright', '☀️ 밝게']].map(a => chip('scFx', i + ':' + a[0], (sc.fx || '') === a[0], a[1])).join('')}</div></div>
-        ${i > 0 ? `<div class="row"><span class="lbl">넘어올 때</span><div class="chips">${[['', '기본'], ['cut', '✂️ 컷'], ['fade', '🌫 페이드'], ['flash', '⚡ 번쩍']].map(a => chip('scTr', i + ':' + a[0], (sc.tr || '') === a[0], a[1])).join('')}</div></div>` : ''}
+        ${i > 0 ? `<div class="row"><span class="lbl">넘어올 때</span><div class="chips">${[['', '기본']].concat(Object.entries(g.BKFX.TRANS)).map(a => chip('scTr', i + ':' + a[0], (sc.tr || '') === a[0], a[1])).join('')}</div></div>` : ''}
         <div class="row"><button class="btn sm" data-a="scPlay" data-v="${i}">▶ 이 장면</button><button class="btn sm" data-a="split" data-v="${i}">✂️ 지금 위치에서 나누기</button>${i > 0 ? `<button class="btn sm" data-a="merge" data-v="${i}">🔗 앞 장면과 합치기</button>` : ''}<button class="btn sm" data-a="scPut5" data-v="${i}">📂 바꾸기</button></div>`;
     }
     if (s.k === 'ly') {
@@ -355,17 +483,15 @@
         <div class="row"><span class="lbl">끝 작아지기</span><div class="chips">${[[0, '없음'], [1.5, '1.5초'], [2.5, '2.5초'], [4, '4초']].map(a => chip('fadeOut', a[0], f.fadeOut === a[0], a[1])).join('')}</div></div>
         <p class="muted">끝 작아지기는 화면이 어두워지는 것과 함께 돼요. 소리 크기는 저장한 영상에 들어가요.</p>`;
     }
-    const f = p.fx;
-    return `<h4>✨ 효과</h4>
-      <div class="row"><span class="lbl">처음 제목</span><div class="chips">${chip('intro', 1, f.intro, '켜기')}${chip('intro', 0, !f.intro, '끄기')}</div></div>
-      ${f.intro ? `<div class="field"><input type="text" id="fIntro" value="${esc(f.introText || '')}" placeholder="제목 (비우면 뮤비 제목)"></div><div class="field"><input type="text" id="fIntroSub" value="${esc(f.introSub || '')}" placeholder="작은 글 (예: 노래 · 부른 사람)"></div>` : ''}
-      <div class="row"><span class="lbl">엔딩 글</span><div class="chips">${chip('outro', 1, f.outro, '켜기')}${chip('outro', 0, !f.outro, '끄기')}</div></div>
-      ${f.outro ? `<div class="field"><input type="text" id="fOutro" value="${esc(f.outroText || '')}" placeholder="예: 들어 주셔서 감사합니다"></div>` : ''}
-      <div class="row"><span class="lbl">처음 밝아지기</span><div class="chips">${[[0, '없음'], [1, '1초'], [2, '2초']].map(a => chip('fadeIn', a[0], f.fadeIn === a[0], a[1])).join('')}</div></div>
-      <div class="row"><span class="lbl">끝 어두워지기</span><div class="chips">${[[0, '없음'], [1.5, '1.5초'], [2.5, '2.5초'], [4, '4초']].map(a => chip('fadeOut', a[0], f.fadeOut === a[0], a[1])).join('')}</div></div>
-      <div class="row"><span class="lbl">필름 느낌</span><div class="chips">${[['none', '없음'], ['cinema', '🎞 시네마 띠'], ['vintage', '📼 빈티지'], ['vivid', '🌈 선명하게']].map(a => chip('film', a[0], f.film === a[0], a[1])).join('')}</div></div>
-      <div class="row"><span class="lbl">장면 넘김</span><div class="chips">${[['cut', '✂️ 컷'], ['fade', '🌫 페이드'], ['flash', '⚡ 번쩍']].map(a => chip('trans', a[0], f.trans === a[0], a[1])).join('')}</div></div>
-      <div class="row"><span class="lbl">사진 천천히 확대</span><div class="chips">${chip('zoomImg', 1, f.zoom, '켜기')}${chip('zoomImg', 0, !f.zoom, '끄기')}</div></div>`;
+    if (s.k === 'efx' || s.k === 'stk' || s.k === 'sfx') {
+      const it = (p[s.k] || [])[s.i]; if (!it) return '';
+      const F = g.BKFX, name = s.k === 'efx' ? F.EFX[it.k] : s.k === 'sfx' ? F.SFX[it.k] : (it.e || '🔤 ' + (it.t || 'BK 로고'));
+      return `<h4>${esc(name)} · ${s.k === 'sfx' ? fmt(it.at) : fmt(it.start) + ' ~ ' + fmt(it.start + it.dur)}</h4>
+        <div class="row"><span class="lbl">위치 옮기기</span>${nud('itMove', s.k + ':' + s.i, [-1, -0.2, 0.2, 1])}</div>
+        ${s.k === 'sfx' ? '' : `<div class="row"><span class="lbl">길이</span>${nud('itLen', s.k + ':' + s.i, [-1, -0.5, 0.5, 1])}</div>`}
+        <div class="row"><button class="btn sm main" data-a="itPlay" data-v="${s.k}:${s.i}">▶ 보기</button><button class="btn sm ghost" data-a="itDel" data-v="${s.k}:${s.i}">🗑 빼기</button></div>`;
+    }
+    return `<h4>🎬 처음 · 끝</h4>${startEnd()}<div class="row" style="margin-top:8px"><button class="btn sm" data-a="open" data-v="6">✨ 다른 효과는 6단계에서</button></div>`;
   }
   function editRefresh(keepPanel) { S.player.refresh(); if (!S.player.playing()) S.player.seek(S.player.time()); tlBuild(); if (!keepPanel) $('panel').innerHTML = panel(); save(); }
   function moveBoundary(i, d) {   // i번 장면의 시작 = i-1번 장면의 끝
@@ -387,7 +513,7 @@
         <video src="${url}" controls playsinline style="width:100%;border-radius:12px;background:#000"></video>
         <div class="row" style="margin-top:8px"><a class="btn main" href="${url}" download="${esc(name)}">⬇️ 휴대폰에 저장</a><button class="btn" id="expShare">📤 보내기</button></div>`;
       $('expShare').onclick = async () => { try { const f = new File([r.blob], name, { type: 'video/mp4' }); if (navigator.canShare && navigator.canShare({ files: [f] })) await navigator.share({ files: [f], title: p.title }); else toast('이 휴대폰은 바로 보내기가 안 돼요 · ⬇️ 저장 후 보내 주세요'); } catch (e) { /* 취소 */ } };
-      $('sts6').textContent = status(6); $('st6').classList.add('done');
+
     } catch (e) { box.innerHTML = `<div class="note red">⚠️ ${esc(e.message || e)}</div>`; }
     finally { S.busy = false; if ($('expBtn')) $('expBtn').disabled = false; if (lock) try { lock.release(); } catch (e) { /* 괜찮음 */ } S.player.seek(S.player.time()); }
   }
@@ -401,6 +527,9 @@
       case 'openP': return openP(v);
       case 'delP': { const q = await MV.getProject(v); if (q && confirm(`「${q.title || '제목 없음'}」을(를) 지울까요?\n(이 뮤비에 넣은 노래 · 영상도 BK뮤비 안에서 지워져요)`)) { await MV.delProject(q); home(); } return; }
       case 'go': return go(v);
+      case 'open': if (el && el.dataset.next && p.step === 6) { p.fxSeen = 1; save(); } return go(v);
+      case 'hub': return toHub();
+      case 'sub': S.subs[p.step] = +v; renderStage(); { const b = document.querySelector('.subbar'); if (b) b.scrollIntoView({ behavior: 'smooth', block: 'start' }); } return;
       case 'pp': return S.player.toggle();
       /* 1 */
       case 'pickSong': { const [f] = await pickFiles('audio/*,.mp3,.m4a,.wav'); if (f) await setSong(f, f.name); return; }
@@ -447,19 +576,20 @@
         if (k >= L.length) return toast('✅ 다 맞췄어요');
         const t = +Math.max(0, S.player.time() - .15).toFixed(2); L[k].s = t; L[k].e = null; if (L[k - 1] && L[k - 1].e != null && L[k - 1].e > t) L[k - 1].e = null;
         S.tapK = k + 1; linesChanged(); tapShow(S.player.time()); const tb = $('tapBtn'); if (tb) { tb.style.filter = 'brightness(1.4)'; setTimeout(() => tb.style.filter = '', 120); }
-        if (S.tapK >= L.length) { toast('🎉 다 맞췄어요! ▶ 로 확인해 보세요', 3500); $('sts5').textContent = status(5); }
+        if (S.tapK >= L.length) { toast('🎉 다 맞췄어요! ▶ 로 확인해 보세요', 3500); }
         return;
       }
       case 'tapBack': { const L = p.lines; if (S.tapK <= 0) return S.player.play(0); S.tapK--; L[S.tapK].s = null; L[S.tapK].e = null; linesChanged(); const prev = L[S.tapK - 1]; tapShow(0); return S.player.play(prev ? Math.max(0, prev.s - .3) : 0); }
       case 'tapEnd': { const l = p.lines[S.tapK - 1]; if (!l || l.s == null) return toast('먼저 줄을 톡 해 주세요'); l.e = +Math.max(l.s + .3, S.player.time()).toFixed(2); linesChanged(); return toast('✋ 자막을 껐어요 · 다음 줄이 들리면 톡'); }
       case 'lnNudge': { const [i, d] = v.split(':'), l = p.lines[+i]; l.s = +Math.max(0, (l.s == null ? S.player.time() : l.s) + +d).toFixed(2); linesChanged(); const r = el.closest('.ln'); if (r) r.querySelector('.t').textContent = fmt(l.s), r.querySelector('.t').classList.remove('no'); return S.player.seek(Math.max(0, l.s)); }
-      case 'lnNow': { const l = p.lines[+v]; l.s = +S.player.time().toFixed(2); linesChanged(); if (p.step === 6) return editRefresh(); return render(); }
+      case 'lnNow': { const l = p.lines[+v]; l.s = +S.player.time().toFixed(2); linesChanged(); if (p.step === 7) return editRefresh(); return render(); }
       case 'lnPlay': { const l = p.lines[+v]; if (l.s == null) return toast('아직 시간이 없어요'); return S.player.play(Math.max(0, l.s - .8)); }
-      case 'lnText': { const l = p.lines[+v], t = prompt('자막 글 고치기', l.t); if (t != null && t.trim()) { l.t = t.trim(); linesChanged(); if (p.step === 6) editRefresh(); else render(); } return; }
+      case 'lnText': { const l = p.lines[+v], t = prompt('자막 글 고치기', l.t); if (t != null && t.trim()) { l.t = t.trim(); linesChanged(); if (p.step === 7) editRefresh(); else render(); } return; }
       case 'capStyle': p.cap.style = v; linesChanged(); return render();
       case 'capPos': p.cap.pos = v; linesChanged(); return render();
       case 'capSize': p.cap.size = +v; linesChanged(); return render();
       case 'capColor': p.cap.color = v; linesChanged(); return render();
+      case 'capFont': p.cap.font = v; try { await document.fonts.load(`900 30px ${g.BKFX.fam(v)}`, '가나다'); } catch (e) { /* 기본 */ } linesChanged(); return render();
       /* 5 */
       case 'zoom': S.zoom = clamp(S.zoom * (+v > 0 ? 1.5 : 1 / 1.5), 3, 80); return tlBuild();
       case 'scB': { const [i, d] = v.split(':'); moveBoundary(+i, +d); return editRefresh(); }
@@ -473,16 +603,18 @@
       case 'lyEauto': p.lines[+v].e = null; return editRefresh();
       case 'lyOff': if (confirm('이 줄을 자막에서 뺄까요? (5단계에서 다시 맞출 수 있어요)')) { p.lines[+v].s = null; p.lines[+v].e = null; S.sel = null; editRefresh(); } return;
       case 'vol': p.fx.vol = +v; S.player.audio.volume = Math.min(1, p.fx.vol); return editRefresh();
-      case 'fadeOut': p.fx.fadeOut = +v; return editRefresh();
-      case 'fadeIn': p.fx.fadeIn = +v; return editRefresh();
-      case 'intro': p.fx.intro = v === '1'; return editRefresh();
-      case 'outro': p.fx.outro = v === '1'; return editRefresh();
-      case 'film': p.fx.film = v; return editRefresh();
+      case 'fadeOut': p.fx.fadeOut = +v; return fxRefresh();
+      case 'fadeIn': p.fx.fadeIn = +v; return fxRefresh();
+      case 'intro': p.fx.intro = v === '1'; return fxRefresh();
+      case 'outro': p.fx.outro = v === '1'; return fxRefresh();
+      case 'film': p.fx.film = v; return fxRefresh();
       case 'trans': p.fx.trans = v; return editRefresh();
-      case 'zoomImg': p.fx.zoom = v === '1'; return editRefresh();
+      case 'zoomImg': p.fx.zoom = v === '1'; return fxRefresh();
       case 'q': S.q = +v; return render();
       case 'export': return doExport();
-      default: if (MV.SONG) return MV.SONG.act(a, v, el);
+      case 'itMove': { const [k, i, d] = v.split(':'), it = p[k][+i]; if (k === 'sfx') it.at = +clamp(it.at + +d, 0, p.song.dur).toFixed(2); else it.start = +clamp(it.start + +d, 0, p.song.dur - .3).toFixed(2); return fxRefresh(); }
+      case 'itLen': { const [k, i, d] = v.split(':'), it = p[k][+i]; it.dur = +clamp(it.dur + +d, .3, p.song.dur - it.start).toFixed(2); return fxRefresh(); }
+      default: if (fxAct(a, v) !== null) return; if (MV.SONG) return MV.SONG.act(a, v, el);
     }
   }
 
@@ -498,7 +630,7 @@
   });
   document.addEventListener('change', e => {
     const p = S.p; if (!p) return; if (MV.SONG && MV.SONG.change(e)) return; const id = e.target.id, v = e.target.value;
-    if (id === 'fTitle') { p.title = v.trim(); $('title').textContent = '🎬 ' + (p.title || 'BK뮤비'); }
+    if (id === 'fTitle' || id === 'fTitle2') { p.title = v.trim(); $('title').textContent = '🎬 ' + (p.title || 'BK뮤비'); }
     else if (id === 'fLyr') p.lyricsRaw = v;
     else if (id === 'fMood') p.look.mood = v.trim();
     else if (id === 'fHero') p.look.hero = v.trim();

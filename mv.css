@@ -117,3 +117,40 @@ header.top button{border:0;border-radius:10px;padding:6px 10px;background:#fffff
 .gate{text-align:center;padding:60px 20px}
 .gate .e{font-size:3rem}
 @media (min-width:640px){.grid{grid-template-columns:1fr 1fr}}
+/* ═══ 작품 화면: 큰 단계 카드 (BK에딧 첫 화면 모양) ═══ */
+.hubTop{margin:14px 0 10px}
+.hubTop input{width:100%;border:1.5px solid var(--line);border-radius:14px;padding:12px;font-size:1.1rem;font-weight:900;background:#fff}
+.hubTop .prog{margin:10px 0 4px}
+.modes{display:grid;gap:10px}
+.mode{position:relative;display:grid;grid-template-columns:56px 1fr;grid-template-rows:auto auto;align-items:center;column-gap:10px;padding:14px 14px;border-radius:20px;border:0;text-align:left;color:#fff;min-height:88px;box-shadow:0 6px 18px #7c3aed22;width:100%}
+.mode .ic{grid-row:1/3;font-size:2.1rem;text-align:center}
+.mode b{font-size:1.15rem;line-height:1.3}
+.mode small{opacity:.94;font-size:.84rem;line-height:1.4}
+.mode .stt{font-weight:900;background:#ffffff33;border-radius:8px;padding:0 6px}
+.mode.todo{outline:4px solid #fde047;outline-offset:2px}
+.mode .todoTag{position:absolute;right:10px;top:-10px;background:#fde047;color:#713f12;font-style:normal;font-weight:900;font-size:.75rem;border-radius:999px;padding:2px 10px;box-shadow:0 2px 6px #0003}
+.g1{background:linear-gradient(135deg,#a21caf,#db2777)}
+.g2{background:linear-gradient(135deg,#ec4899,#f97316)}
+.g3{background:linear-gradient(135deg,#0ea5e9,#0d9488)}
+.g4{background:linear-gradient(135deg,#475569,#1e293b)}
+.g5{background:linear-gradient(135deg,#f59e0b,#ea580c)}
+.g6{background:linear-gradient(135deg,#7c3aed,#2563eb)}
+.g7{background:linear-gradient(135deg,#14b8a6,#0e7490)}
+/* 단계 화면 */
+.stHead{position:sticky;top:50px;z-index:14;background:var(--bg);display:flex;align-items:center;gap:8px;padding:8px 0}
+.stT{flex:1;min-width:0}
+.stT span{display:block;font-size:.72rem;color:var(--sub);font-weight:800}
+.stT b{display:block;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stBody{background:#fff;border-radius:18px;border:1.5px solid var(--line);padding:12px}
+.stNav{display:flex;gap:8px;margin:14px 0}
+.stNav>*{flex:1}
+.subbar{display:flex;gap:6px;overflow-x:auto;margin:10px 0;padding-bottom:4px}
+.subbar button{flex:none;border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:7px 12px;font-weight:800;font-size:.85rem;color:var(--ink)}
+.subbar button.on{background:var(--p);border-color:var(--p);color:#fff}
+.subnext{margin-top:14px;background:#ede9fe;color:var(--p)}
+/* 효과 */
+.pos9{display:grid;grid-template-columns:repeat(3,38px);gap:4px}
+.pos9 button{height:26px;border:1.5px solid var(--line);border-radius:6px;background:#fff}
+.pos9 button.on{background:var(--p2);border-color:var(--p2)}
+.emo{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
+.emo button{font-size:1.4rem;border:1px solid var(--line);background:#fff;border-radius:10px;padding:4px 0}

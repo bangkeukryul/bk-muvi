@@ -43,28 +43,38 @@
   MV.newProject = function () {
     const now = Date.now();
     return {
-      id: 'mv' + now, at: now, v: 2, title: '', step: 1, mk: null,
+      id: 'mv' + now, at: now, v: 3, title: '', step: 1, mk: null,
       song: null,              // { file, name, dur }
       lyricsRaw: '', lines: [],// [{ t, s, e }]  s/e: 초 (없으면 null)
       ratio: '16:9', clipLen: 8, mode: 'video',
       look: { mood: '', style: '실사 시네마틱', hero: '' },
       scenes: [],              // [{ id, s, e, file, kind, name, prompt, ok, off, fx, tr }]
       locked: false,
-      cap: { style: 'karaoke', pos: 'bottom', size: 1, color: '#ffe14d' },
-      fx: { intro: true, introText: '', outro: false, outroText: '', fadeIn: 1, fadeOut: 2.5, trans: 'fade', film: 'none', zoom: true, vol: 1 },
+      cap: { style: 'karaoke', pos: 'bottom', size: 1, color: '#ffe14d', font: 'noto' },
+      fx: { intro: true, introText: '', outro: false, outroText: '', fadeIn: 1, fadeOut: 2.5, trans: 'fade', tdur: .6, color: 'none', film: 'none', zoom: true, vol: 1, sfxVol: .8 },
+      efx: [], stk: [], sfx: [],
     };
+  };
+  /* 옛 작품에 효과 칸 채우기 */
+  MV.fixFx = function (p) {
+    p.efx = p.efx || []; p.stk = p.stk || []; p.sfx = p.sfx || []; const f = p.fx;
+    if (f.tdur == null) f.tdur = .6; if (!f.color) f.color = 'none'; if (f.sfxVol == null) f.sfxVol = .8; if (f.trans === 'flash') f.trans = 'white';
+    (p.scenes || []).forEach(s => { if (s.tr === 'flash') s.tr = 'white'; });
+    if (!p.cap.font) p.cap.font = 'noto';
+    return p;
   };
 
   /* ── 가사 정리: [Verse] 같은 표시 · 빈 줄 빼고, [00:15] 시간이 있으면 읽기 ── */
   MV.parseLyrics = function (raw) {
-    const out = []; let timed = 0;
+    const out = []; let timed = 0, sec = '';
     String(raw || '').split(/\r?\n/).forEach(l => {
       let s = null, t = l.trim(); if (!t) return;
       const m = t.match(/^\[?\(?(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\)?\]?\s*[-–:]?\s*(.*)$/);
       if (m) { s = (+m[1]) * 60 + (+m[2]) + (m[3] ? +('0.' + m[3]) : 0); t = m[4].trim(); timed++; }
+      if (/^[\[【]\s*(chorus|hook|후렴)/i.test(t)) sec = 'chorus'; else if (/^[\[【]\s*(verse|pre|bridge|intro|outro|instrumental|\d\s*절|브릿지|간주)/i.test(t)) sec = '';
       if (!t || /^[\[(（【].*[\])）】]$/.test(t)) return;     // [후렴] (간주) 같은 표시
       if (/^(verse|chorus|bridge|intro|outro|pre-?chorus|hook|간주|전주|후주|후렴|브릿지)\s*\d*\s*:?$/i.test(t)) return;
-      out.push({ t: t.replace(/^[-•·]\s*/, ''), s, e: null });
+      out.push({ t: t.replace(/^[-•·]\s*/, ''), s, e: null, sec });
     });
     return { lines: out, timed: timed > 0 && timed >= out.length * 0.6 };
   };

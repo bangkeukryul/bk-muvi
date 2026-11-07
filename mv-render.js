@@ -54,6 +54,7 @@
     if (fx === 'bw') f.push('grayscale(1) contrast(1.1)');
     if (fx === 'warm') f.push('sepia(.3) saturate(1.2)');
     if (fx === 'bright') f.push('brightness(1.15) saturate(1.1)');
+    const F = g.BKFX, cf = F && F.FILTERS[p.fx.color]; if (cf && cf[1]) f.push(cf[1]);
     if (p.fx.film === 'vintage') f.push('sepia(.35) contrast(1.05) saturate(.9)');
     if (p.fx.film === 'vivid') f.push('saturate(1.3) contrast(1.06)');
     return f.join(' ') || 'none';
@@ -75,7 +76,11 @@
     x.drawImage(el, dx, dy, dw, dh);
     x.filter = 'none'; x.restore();
   }
-  function transOf(p, sc) { return sc.tr || p.fx.trans || 'fade'; }
+  function transOf(p, sc) { let k = sc.tr || p.fx.trans || 'fade'; if (k === 'flash') k = 'white'; return k; }
+  const BUF = [null, null];
+  function buf(k, W, H) { let c = BUF[k]; if (!c) c = BUF[k] = document.createElement('canvas'); if (c.width !== W || c.height !== H) { c.width = W; c.height = H; } return c; }
+  const PRE = { punch: 1, shake: 1, mirror: 1 };
+  const on = (it, t) => t >= it.start && t < it.start + it.dur;
 
   /* 자막에 쓸 줄: 시간이 맞춰진 줄만 */
   function capLines(p) {
@@ -83,9 +88,10 @@
     L.forEach((l, i) => { if (l.s == null) return; let e = l.e; if (e == null) { const nx = L.slice(i + 1).find(q => q.s != null); e = nx ? nx.s : l.s + 6; e = Math.min(e, l.s + 8, dur); } out.push({ t: l.t, s: l.s, e: Math.max(l.s + .3, e), i }); });
     return out;
   }
-  function fitFont(x, text, px, maxW) { let f = px; x.font = `900 ${f}px ${FONT}`; while (f > 12 && x.measureText(text).width > maxW) { f -= 2; x.font = `900 ${f}px ${FONT}`; } return f; }
+  let CF = FONT;
+  function fitFont(x, text, px, maxW) { let f = px; x.font = `900 ${f}px ${CF}`; while (f > 12 && x.measureText(text).width > maxW) { f -= 2; x.font = `900 ${f}px ${CF}`; } return f; }
   function drawCaps(x, W, H, p, t, CL) {
-    const st = p.cap.style; if (st === 'none') return;
+    const st = p.cap.style; if (st === 'none') return; CF = g.BKFX && p.cap.font ? g.BKFX.fam(p.cap.font) : FONT;
     CL = CL || capLines(p);
     let k = -1; for (let j = CL.length - 1; j >= 0; j--) if (t >= CL[j].s - .05 && t < CL[j].e) { k = j; break; }
     if (k < 0) return;
@@ -99,7 +105,7 @@
       const tw = x.measureText(c.t).width, left = W / 2 - tw / 2, pr = clamp((t - c.s) / Math.max(.3, (c.e - c.s) * .88), 0, 1);
       outline(c.t, y, '#ffffff', fade);
       x.save(); x.beginPath(); x.rect(left - 4, y - f, (tw + 8) * pr, f * 2); x.clip(); x.globalAlpha = fade; x.fillStyle = p.cap.color || '#ffe14d'; x.fillText(c.t, W / 2, y); x.restore();
-      if (st === 'two' && CL[k + 1]) { const n = CL[k + 1].t, f2 = fitFont(x, n, Math.round(base * .78), W * .86); x.font = `900 ${f2}px ${FONT}`; const y2 = p.cap.pos === 'top' ? y + f * 1.35 : y - f * 1.35; x.lineWidth = Math.max(3, f2 * .16); x.globalAlpha = fade * .8; x.strokeStyle = 'rgba(0,0,0,.8)'; x.strokeText(n, W / 2, y2); x.fillStyle = 'rgba(255,255,255,.75)'; x.fillText(n, W / 2, y2); }
+      if (st === 'two' && CL[k + 1]) { const n = CL[k + 1].t, f2 = fitFont(x, n, Math.round(base * .78), W * .86); x.font = `900 ${f2}px ${CF}`; const y2 = p.cap.pos === 'top' ? y + f * 1.35 : y - f * 1.35; x.lineWidth = Math.max(3, f2 * .16); x.globalAlpha = fade * .8; x.strokeStyle = 'rgba(0,0,0,.8)'; x.strokeText(n, W / 2, y2); x.fillStyle = 'rgba(255,255,255,.75)'; x.fillText(n, W / 2, y2); }
     } else outline(c.t, y, '#ffffff', fade);
     x.restore();
   }
@@ -115,18 +121,21 @@
   function drawFrame(x, W, H, p, t, CL) {
     x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
     const S = p.scenes || []; if (!S.length) return;
-    const i = MV.sceneAt(p, t), sc = S[i];
-    drawScene(x, W, H, p, i, t, 1);
-    const nx = S[i + 1], D = .6;
-    if (nx && t > sc.e - D) {
-      const k = (t - (sc.e - D)) / D, tr = transOf(p, nx);
-      if (tr === 'fade') drawScene(x, W, H, p, i + 1, t, k);
-      if (tr === 'flash' && t > sc.e - .2) { x.fillStyle = `rgba(255,255,255,${clamp((t - (sc.e - .2)) / .2, 0, 1)})`; x.fillRect(0, 0, W, H); }
-    }
-    if (i > 0 && transOf(p, sc) === 'flash' && t < sc.s + .35) { x.fillStyle = `rgba(255,255,255,${clamp(1 - (t - sc.s) / .35, 0, 1)})`; x.fillRect(0, 0, W, H); }
+    const i = MV.sceneAt(p, t), sc = S[i], F = g.BKFX, D = p.fx.tdur || .6;
+    const act = (p.efx || []).filter(e => on(e, t));
+    x.save(); if (F) F.preTransform(x, W, H, act.filter(e => PRE[e.k]), t);
+    const tk = i > 0 ? transOf(p, sc) : 'cut';
+    if (F && i > 0 && tk !== 'cut' && t < sc.s + D) {
+      const A = buf(0, W, H), B = buf(1, W, H), ax = A.getContext('2d'), bx = B.getContext('2d');
+      ax.fillStyle = '#000'; ax.fillRect(0, 0, W, H); drawScene(ax, W, H, p, i - 1, t, 1);
+      bx.fillStyle = '#000'; bx.fillRect(0, 0, W, H); drawScene(bx, W, H, p, i, t, 1);
+      F.transition(x, W, H, tk, A, B, clamp((t - sc.s) / D, 0, 1));
+    } else drawScene(x, W, H, p, i, t, 1);
+    x.restore();
     if (p.fx.film === 'cinema') { const bh = Math.max(0, (H - W / 2.39) / 2); if (bh > 2) { x.fillStyle = '#000'; x.fillRect(0, 0, W, bh); x.fillRect(0, H - bh, W, bh); } }
     if (p.fx.film === 'vintage' || p.fx.film === 'cinema') { const gr = x.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .35, W / 2, H / 2, Math.max(W, H) * .72); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.45)'); x.fillStyle = gr; x.fillRect(0, 0, W, H); }
     const dur = (p.song && p.song.dur) || S[S.length - 1].e;
+    if (F) { for (const e of act) if (!PRE[e.k]) F.overlay(x, W, H, e, t); for (const k of (p.stk || [])) if (on(k, t)) F.drawSticker(x, W, H, k, t); }
     if (p.fx.intro) { const tt = p.fx.introText || p.title; bigText(x, W, H, tt, t < 4 ? clamp(Math.min((t - .3) / .6, (4 - t) / .8), 0, 1) : 0, p.fx.introSub || ''); }
     if (p.fx.outro && p.fx.outroText) bigText(x, W, H, p.fx.outroText, clamp(Math.min((t - (dur - 5)) / .8, (dur - t) / .6 + .5), 0, 1));
     if (!(p.fx.intro && t < 4)) drawCaps(x, W, H, p, t, CL);
@@ -148,10 +157,11 @@
     };
     P.refresh = function () { P.CL = P.p ? capLines(P.p) : null; };
     P.time = () => P.audio.currentTime || 0;
+    P.sfx = function (k) { try { const F = g.BKFX; if (!F) return; const C = P.ac || (P.ac = new (g.AudioContext || g.webkitAudioContext)()); if (C.state === 'suspended') C.resume(); const gn = C.createGain(); gn.gain.value = (P.p && P.p.fx.sfxVol) || .8; gn.connect(C.destination); F.sfx(C, gn, k, C.currentTime + .02); } catch (e) { /* 소리 없음 */ } };
     P.playing = () => !P.audio.paused;
     P.syncVideos = function (t, play) {
       const p = P.p, i = MV.sceneAt(p, t), S = p.scenes;
-      for (const m of MEDIA.values()) if (m.vid && !m.p) { const owner = [S[i], S[i + 1]].find(s => s && s.file === m.id); if (!owner) { if (!m.vid.paused) m.vid.pause(); continue; }
+      for (const m of MEDIA.values()) if (m.vid && !m.p) { const pv = S[i - 1] && t < S[i].s + (p.fx.tdur || .6) ? S[i - 1] : null, owner = [pv, S[i], S[i + 1]].find(s => s && s.file === m.id); if (!owner) { if (!m.vid.paused) m.vid.pause(); continue; }
         const want = srcTime(owner, m, t); if (owner === S[i + 1] && t < owner.s) { if (!m.vid.paused) m.vid.pause(); if (Math.abs(m.vid.currentTime - want) > .2) m.vid.currentTime = want; continue; }
         if (play) { if (Math.abs(m.vid.currentTime - want) > .35) m.vid.currentTime = want; if (m.vid.paused) m.vid.play().catch(() => {}); } else { if (!m.vid.paused) m.vid.pause(); if (Math.abs(m.vid.currentTime - want) > .03) m.vid.currentTime = want; } }
     };
@@ -160,6 +170,8 @@
       P.raf = 0; if (!P.p) return; const t = P.time(), i = MV.sceneAt(P.p, t);
       if (i !== P.cur) { P.cur = i; near(P.p, i); }
       if (P.stopAt != null && t >= P.stopAt) { P.pause(); P.stopAt = null; }
+      if (P.playing() && P.lastT != null && t > P.lastT && t - P.lastT < .5) for (const z of (P.p.sfx || [])) if (z.at > P.lastT && z.at <= t) P.sfx(z.k);
+      P.lastT = t;
       P.syncVideos(t, P.playing()); P.draw(); P.onTime && P.onTime(t);
       if (P.playing()) P.raf = requestAnimationFrame(P.loop);
     };
@@ -173,7 +185,7 @@
     P.seek = async function (t) {
       if (!P.p) return; t = clamp(t, 0, (P.p.song && P.p.song.dur) || 0); try { P.audio.currentTime = t; } catch (e) { /* 아직 */ }
       const i = MV.sceneAt(P.p, t); P.cur = i; await near(P.p, i);
-      for (const s of [P.p.scenes[i], P.p.scenes[i + 1]]) { const m = s && s.file && get(s.file); if (m && m.vid) await MV.seekVideo(m.vid, srcTime(s, m, Math.max(t, s.s))); }
+      for (const s of [P.p.scenes[i - 1], P.p.scenes[i], P.p.scenes[i + 1]]) { const m = s && s.file && get(s.file); if (m && m.vid) await MV.seekVideo(m.vid, srcTime(s, m, Math.max(t, s.s))); }
       P.draw(); P.onTime && P.onTime(t);
     };
     P.stop = function () { P.audio.pause(); if (P.raf) cancelAnimationFrame(P.raf); P.raf = 0; };
@@ -201,6 +213,7 @@
     const s = oc.createBufferSource(); s.buffer = dec; const gn = oc.createGain(); const v = p.fx.vol == null ? 1 : p.fx.vol;
     gn.gain.setValueAtTime(v, 0); const fo = Math.min(p.fx.fadeOut || 0, total / 3); if (fo > 0) { gn.gain.setValueAtTime(v, Math.max(0, total - fo)); gn.gain.linearRampToValueAtTime(0, total); }
     s.connect(gn); gn.connect(oc.destination); s.start(0);
+    if (g.BKFX && (p.sfx || []).length) { const sg = oc.createGain(); sg.gain.value = p.fx.sfxVol || .8; sg.connect(oc.destination); for (const z of p.sfx) if (z.at < total) g.BKFX.sfx(oc, sg, z.k, Math.max(0, z.at)); }
     return await new Promise((res, rej) => { oc.oncomplete = e => res(e.renderedBuffer); const q = oc.startRendering(); if (q && q.then) q.then(res, rej); });
   }
   async function exportMp4(p, q, onProg, ctl) {
@@ -208,7 +221,7 @@
     if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined') throw new Error('이 브라우저는 영상 만들기를 지원하지 않아요. 크롬으로 열어 주세요.');
     const [W, H] = outSize(p.ratio, q), fps = 30, SR = 48000, total = p.song.dur;
     const vcfg = await pickV(W, H, fps); if (!vcfg) throw new Error(`이 휴대폰은 ${W}x${H} 영상을 못 만들어요. 720으로 낮춰 보세요.`);
-    try { await document.fonts.load(`900 40px "Noto Sans KR"`, '가나다'); await document.fonts.load(`700 40px "Noto Sans KR"`, '가나다'); } catch (e) { /* 기본 글꼴 */ }
+    try { if (g.BKFX && p.cap.font) await document.fonts.load(`900 40px ${g.BKFX.fam(p.cap.font)}`, (p.lines || []).map(l => l.t).join('').slice(0, 300) || '가'); await document.fonts.load(`900 40px "Noto Sans KR"`, '가나다'); await document.fonts.load(`700 40px "Noto Sans KR"`, '가나다'); } catch (e) { /* 기본 글꼴 */ }
     const acfg = await pickA(SR), warning = acfg ? null : '이 브라우저는 소리 넣기를 지원하지 않아 소리 없이 만들었어요.';
     const mux = new g.Mp4Muxer({ video: { width: W, height: H }, audio: acfg ? { codec: acfg.mux, sampleRate: SR, numberOfChannels: 2, bitrate: acfg.cfg.bitrate } : undefined });
     let err = null;
@@ -230,7 +243,7 @@
         if (ctl.aborted) throw new Error('취소했어요.'); if (err) throw err;
         const t = f / fps, i = MV.sceneAt(p, t), S = p.scenes;
         if (i !== lastI) { lastI = i; await near(p, i, 1); }
-        for (const s of [S[i], (S[i + 1] && t > S[i].e - .6) ? S[i + 1] : null]) { const m = s && s.file && get(s.file); if (m && m.vid) await MV.seekVideo(m.vid, srcTime(s, m, Math.max(t, s.s))); }
+        for (const s of [(S[i - 1] && t < S[i].s + (p.fx.tdur || .6)) ? S[i - 1] : null, S[i]]) { const m = s && s.file && get(s.file); if (m && m.vid) await MV.seekVideo(m.vid, srcTime(s, m, Math.max(t, s.s))); }
         drawFrame(x, W, H, p, t, CL);
         const vf = new VideoFrame(cv, { timestamp: Math.round(f * 1e6 / fps), duration: fd }); ve.encode(vf, { keyFrame: f % (fps * 2) === 0 }); vf.close();
         while (ve.encodeQueueSize > 6) await MV.sleep(2);

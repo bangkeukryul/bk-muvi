@@ -154,3 +154,9 @@ header.top button{border:0;border-radius:10px;padding:6px 10px;background:#fffff
 .pos9 button.on{background:var(--p2);border-color:var(--p2)}
 .emo{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
 .emo button{font-size:1.4rem;border:1px solid var(--line);background:#fff;border-radius:10px;padding:4px 0}
+/* 내 뮤비: 이어 만들기 · 쪽 번호 */
+.contBtn{flex-direction:column;margin-top:10px}
+.contBtn small{display:block;font-weight:700;font-size:.82rem;opacity:.95;margin-top:2px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pager{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:14px 0}
+.pager button{min-width:40px;height:40px;border:1.5px solid var(--line);background:#fff;border-radius:10px;font-weight:800;color:var(--ink)}
+.pager button.on{background:var(--p);border-color:var(--p);color:#fff}

@@ -46,15 +46,22 @@
     MV.dropAll(); S.p = null; $('title').textContent = '🎬 BK뮤비'; $('homeBtn').classList.add('hide');
     const root = $('app');
     if (!isAdmin()) { root.innerHTML = `<div class="gate"><div class="e">🛠</div><h2>관리자 전용 (준비 중)</h2><p class="muted">BK뮤비는 아직 관리자만 쓸 수 있어요.<br>다른 BK 앱에서 관리자 모드를 켠 휴대폰에서 열어 주세요.</p></div>`; return; }
-    const list = await MV.listProjects().catch(() => []);
+    const list = await MV.listProjects().catch(() => []), PER = 10, pages = Math.max(1, Math.ceil(list.length / PER));
+    S.page = clamp(S.page || 1, 1, pages);
+    const cont = list.find(p => !p.exported) || null;   // 가장 최근에 만지던 (아직 저장 안 한) 뮤비
+    const stName = p => { const n = clamp(p.step || 1, 1, STAGES.length); return STAGES[n - 1].e + ' ' + STAGES[n - 1].t; };
+    const shown = list.slice((S.page - 1) * PER, S.page * PER);
     root.innerHTML = `
       <div class="note blue" style="margin-top:14px">🎬 <b>노래 한 곡 → 뮤직비디오 한 편</b><br>① 🎼 노래 만들기 → ② 🎵 노래 넣기 → ③ 🎬 장면(Flow) → ④ 🔒 잠금 → ⑤ 🎤 자막 → ⑥ ✨ 효과 → ⑦ ✂️ 최종 편집 순서로 차례차례 만들어요.</div>
       <button class="btn main big" data-a="newP">＋ 새 뮤비 만들기</button>
-      <div class="plist">${list.length ? list.map(p => `
-        <div class="pitem"><div style="font-size:1.6rem">${p.locked ? '🔒' : '🎬'}</div>
-          <div class="bd"><b>${esc(p.title || '(제목 없음)')}</b><span class="muted">${p.song ? fmt0(p.song.dur) + ' · ' : ''}장면 ${(p.scenes || []).filter(s => s.file).length}/${(p.scenes || []).length} · ${STAGES[(p.step || 1) - 1].e} ${STAGES[(p.step || 1) - 1].t} 단계 · ${new Date(p.at).toLocaleDateString('ko-KR')}</span></div>
+      ${cont ? `<button class="btn pink big contBtn" data-a="openP" data-v="${cont.id}">▶ 이어 만들기<small>「${esc(cont.title || '제목 없음')}」 · ${stName(cont)} 단계부터</small></button>` : ''}
+      ${list.length ? `<h3 style="margin:18px 0 0">📂 내 뮤비 <span class="muted">${list.length}개</span></h3>` : ''}
+      <div class="plist">${list.length ? shown.map(p => `
+        <div class="pitem"><div style="font-size:1.6rem">${p.exported ? '✅' : p.locked ? '🔒' : '🎬'}</div>
+          <div class="bd"><b>${esc(p.title || '(제목 없음)')}</b><span class="muted">${p.song ? fmt0(p.song.dur) + ' · ' : ''}장면 ${(p.scenes || []).filter(s => s.file).length}/${(p.scenes || []).length} · ${p.exported ? '완성' : stName(p) + ' 단계'} · ${new Date(p.at).toLocaleDateString('ko-KR')}</span></div>
           <button class="btn sm main" data-a="openP" data-v="${p.id}">열기</button>
-          <button class="btn sm ghost" data-a="delP" data-v="${p.id}">🗑</button></div>`).join('') : '<p class="muted" style="text-align:center">아직 만든 뮤비가 없어요.</p>'}</div>`;
+          <button class="btn sm ghost" data-a="delP" data-v="${p.id}">🗑</button></div>`).join('') : '<p class="muted" style="text-align:center">아직 만든 뮤비가 없어요.</p>'}</div>
+      ${pages > 1 ? `<div class="pager">${S.page > 1 ? `<button data-a="page" data-v="${S.page - 1}">◀</button>` : ''}${Array.from({ length: pages }, (_, i) => `<button class="${i + 1 === S.page ? 'on' : ''}" data-a="page" data-v="${i + 1}">${i + 1}</button>`).join('')}${S.page < pages ? `<button data-a="page" data-v="${S.page + 1}">▶</button>` : ''}</div>` : ''}`;
   }
 
   async function openP(id) {
@@ -525,6 +532,7 @@
       case 'home': return home();
       case 'newP': { const np = MV.newProject(); await MV.putProject(np); return openP(np.id); }
       case 'openP': return openP(v);
+      case 'page': S.page = +v; await home(); return g.scrollTo(0, 0);
       case 'delP': { const q = await MV.getProject(v); if (q && confirm(`「${q.title || '제목 없음'}」을(를) 지울까요?\n(이 뮤비에 넣은 노래 · 영상도 BK뮤비 안에서 지워져요)`)) { await MV.delProject(q); home(); } return; }
       case 'go': return go(v);
       case 'open': if (el && el.dataset.next && p.step === 6) { p.fxSeen = 1; save(); } return go(v);

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>BK뮤비</title>
+<meta name="description" content="노래 한 곡으로 뮤직비디오 한 편 — 노래 → 장면 → 잠금 → 가사 자막 → 최종 편집">
+<meta name="theme-color" content="#7c3aed">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap">
+<link rel="stylesheet" href="mv.css">
+</head>
+<body>
+<header class="top"><h1 id="title">🎬 BK뮤비</h1><button type="button" id="homeBtn" class="hide">🏠 내 뮤비</button></header>
+<main class="wrap">
+<div id="app"></div>
+<footer id="bkFoot" style="margin-top:40px">
+<!--BKVER--><style>.bkv{text-align:center;margin:0 0 18px;font-size:.82rem;color:#64748b;line-height:1.6}.bkv>.bkv-n{display:inline-block;padding:3px 12px;border-radius:999px;background:#fff;border:1.5px solid #8b5cf633;color:#8b5cf6;font-weight:800}.bkv-ok{color:#15803d;font-weight:800;margin-left:6px}.bkv-warn{display:block;color:#b45309;font-weight:800;margin-top:4px}#bkVerUp{display:block;width:auto!important;margin:8px auto 0!important;padding:10px 16px!important;border-radius:12px!important;border:0!important;background:#8b5cf6!important;color:#fff!important;font-weight:800!important;font-size:.92rem!important}#bkVerLog{text-align:left;margin:12px auto 0;max-width:640px;background:#fff;border:2px dashed #f59e0b;border-radius:14px;padding:10px 14px;color:#334155}#bkVerLog summary{cursor:pointer;font-weight:800;color:#92400e}.bkv-e{border-top:1px solid #f1f5f9;padding:8px 0 2px;margin-top:8px}.bkv-e b{color:#8b5cf6}.bkv-e span{color:#94a3b8;font-size:.78rem}.bkv-e ul{margin:4px 0 0;padding-left:18px}.bkv-e li{margin:2px 0}.bkv-new b{background:#fef3c7;padding:0 6px;border-radius:6px}</style><div class="bkv" id="bkVer"><span class="bkv-n">BK뮤비 v1 · 2026.11.07</span><span id="bkVerSt"></span><details id="bkVerLog" hidden></details></div><script>(function(){var V={"v": "1", "prefix": "bk-muvi-", "always": false, "log": [["1", "2026.11.07", ["🎬 BK뮤비 첫 버전 (관리자 전용) — 노래 한 곡으로 뮤직비디오 한 편", "① 🎵 노래 · 가사 (내 MP3 / BK뮤직 노래함) → ② 🎬 장면 칸마다 Flow 글 복사 · 영상 넣기 · ▶ 들어 보고 👍 → ③ 🔒 잠금 → ④ 🎤 가사 한 줄씩 톡톡 · 노래방 자막 → ⑤ ✂️ 화면 · 음악 · 자막 · 효과 줄로 최종 편집 · 💾 MP4 저장"]]]};
+function $(i){return document.getElementById(i)}
+var adm=function(){try{return V.always||localStorage.getItem('bkAdmin')==='1'}catch(e){return !!V.always}};
+var box=$('bkVer'),st=$('bkVerSt'),lg=$('bkVerLog');
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+lg.innerHTML='<summary>🛠 업데이트 기록 (관리자만 보여요)</summary>'+V.log.map(function(e,i){return '<div class="bkv-e'+(i?'':' bkv-new')+'"><b>v'+esc(e[0])+'</b> <span>'+esc(e[1])+(i?'':' · 지금 버전')+'</span><ul>'+e[2].map(function(x){return '<li>'+esc(x)+'</li>'}).join('')+'</ul></div>'}).join('');
+function showLog(){lg.hidden=!adm()}
+showLog();window.addEventListener('load',showLog);var f=$('bkFoot');if(f)f.addEventListener('click',function(){setTimeout(showLog,300)});
+if(!navigator.onLine||!window.fetch)return;
+fetch('sw.js?v='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():''}).then(function(t){
+ var m=t.match(/-v(\d+)['"]/);if(!m)return;var s=+m[1],me=+V.v;
+ if(s===me){st.textContent='✅ 최신';st.className='bkv-ok';return}
+ if(s>me){st.innerHTML='<button type="button" id="bkVerUp">🔄 새 버전 v'+s+' 있어요 · 눌러서 업데이트</button>';
+  $('bkVerUp').addEventListener('click',function(){this.textContent='⏳ 업데이트 중…';
+   var p=[];try{p.push(caches.keys().then(function(ks){return Promise.all(ks.filter(function(k){return k.indexOf(V.prefix)===0}).map(function(k){return caches.delete(k)}))}))}catch(e){}
+   if(navigator.serviceWorker)p.push(navigator.serviceWorker.getRegistration().then(function(g){return g&&g.update()}).catch(function(){}));
+   Promise.all(p).then(function(){location.reload()},function(){location.reload()})});return}
+ if(adm()){st.textContent='⚠️ sw.js가 v'+s+'예요 (화면은 v'+me+') · sw.js도 올려 주세요';st.className='bkv-warn'}
+}).catch(function(){});
+})();</script><!--/BKVER-->
+</footer>
+</main>
+<script src="mp4mux.js"></script>
+<script src="mv-core.js"></script>
+<script src="mv-render.js"></script>
+<script src="mv-ui.js"></script>
+</body>
+</html>

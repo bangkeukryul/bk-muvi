@@ -46,7 +46,7 @@
   function get(id) { const m = MEDIA.get(id); return m && !m.p ? m : null; }
 
   /* 장면 안에서 영상 몇 초를 보여 줄지 (짧으면 처음부터 다시) */
-  function srcTime(sc, m, t) { const d = (m && m.dur) || 8; let x = (sc.off || 0) + Math.max(0, t - sc.s); if (x > d - 0.05) x = x % Math.max(0.5, d - 0.05); return x; }
+  function srcTime(sc, m, t) { const d = (m && m.dur) || 8; let x = (sc.off || 0) + (sc.freeze ? 0 : Math.max(0, t - sc.s) * (sc.speed || 1)); if (x > d - 0.05) x = x % Math.max(0.5, d - 0.05); return x; }
 
   function filterFor(p, sc) {
     const f = [];
@@ -66,20 +66,25 @@
     if (!m) { x.fillStyle = '#1e1b4b'; x.fillRect(0, 0, W, H); x.fillStyle = 'rgba(255,255,255,.55)'; x.font = `800 ${Math.round(Math.min(W, H) * .07)}px ${FONT}`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(sc.file ? '불러오는 중…' : `장면 ${i + 1} 비어 있음`, W / 2, H / 2); x.restore(); return; }
     const el = m.kind === 'video' ? m.vid : m.img, iw = el.videoWidth || el.width, ih = el.videoHeight || el.height;
     if (!iw || !ih) { x.restore(); return; }
-    let sc0 = Math.max(W / iw, H / ih);
+    const fit = sc.fit || 'cover';
+    if (fit === 'blur') { const cb = Math.max(W / iw, H / ih); x.save(); x.filter = 'blur(18px) brightness(.7)'; x.drawImage(el, (W - iw * cb) / 2, (H - ih * cb) / 2, iw * cb, ih * cb); x.restore(); }
+    let sc0 = fit === 'cover' ? Math.max(W / iw, H / ih) : Math.min(W / iw, H / ih);
     const len = Math.max(.5, sc.e - sc.s), pr = clamp((t - sc.s) / len, 0, 1);
-    let zfx = sc.fx === 'zoomin' ? 1 : sc.fx === 'zoomout' ? -1 : (m.kind === 'image' && p.fx.zoom && sc.fx !== 'still') ? (i % 2 ? -1 : 1) : 0;
-    const z = zfx > 0 ? 1 + .1 * pr : zfx < 0 ? 1.1 - .1 * pr : 1;
+    let zfx = sc.fx === 'zoomin' ? 1 : sc.fx === 'zoomout' ? -1 : (m.kind === 'image' && p.fx.zoom && sc.fx !== 'still' && fit === 'cover') ? (i % 2 ? -1 : 1) : 0;
+    const z = (zfx > 0 ? 1 + .1 * pr : zfx < 0 ? 1.1 - .1 * pr : 1) * (sc.zoom || 1);
     sc0 *= z; const dw = iw * sc0, dh = ih * sc0;
-    const dx = (W - dw) / 2 + (zfx ? (i % 3 - 1) * W * .02 * pr : 0), dy = (H - dh) / 2;
+    const dx = (W - dw) / 2 + (zfx ? (i % 3 - 1) * W * .02 * pr : 0) + (sc.px || 0) * Math.max(0, dw - W) / 2, dy = (H - dh) / 2 + (sc.py || 0) * Math.max(0, dh - H) / 2;
+    if (sc.flip) { x.translate(W, 0); x.scale(-1, 1); }
     x.filter = filterFor(p, sc);
     x.drawImage(el, dx, dy, dw, dh);
     x.filter = 'none'; x.restore();
+    const fi = sc.fi || 0, fo = sc.fo || 0; let bk = 0; if (fi && t < sc.s + fi) bk = 1 - (t - sc.s) / fi; if (fo && t > sc.e - fo) bk = Math.max(bk, (t - (sc.e - fo)) / fo);
+    if (bk > 0) { x.save(); x.globalAlpha = (alpha == null ? 1 : alpha) * clamp(bk, 0, 1); x.fillStyle = '#000'; x.fillRect(0, 0, W, H); x.restore(); }
   }
   function transOf(p, sc) { let k = sc.tr || p.fx.trans || 'fade'; if (k === 'flash') k = 'white'; return k; }
   const BUF = [null, null];
   function buf(k, W, H) { let c = BUF[k]; if (!c) c = BUF[k] = document.createElement('canvas'); if (c.width !== W || c.height !== H) { c.width = W; c.height = H; } return c; }
-  const PRE = { punch: 1, shake: 1, mirror: 1 };
+  const PRE = { punch: 1, shake: 1, mirror: 1, slowzoom: 1, heartbeat: 1 };
   const on = (it, t) => t >= it.start && t < it.start + it.dur;
 
   /* 자막에 쓸 줄: 시간이 맞춰진 줄만 */
@@ -151,13 +156,56 @@
     if (p.fx.film === 'vintage' || p.fx.film === 'cinema') { const gr = x.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .35, W / 2, H / 2, Math.max(W, H) * .72); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.45)'); x.fillStyle = gr; x.fillRect(0, 0, W, H); }
     const dur = (p.song && p.song.dur) || S[S.length - 1].e;
     if (F) { for (const e of act) if (!PRE[e.k]) F.overlay(x, W, H, e, t); for (const k of (p.stk || [])) if (on(k, t)) F.drawSticker(x, W, H, k, t); }
-    if (p.fx.intro) { const tt = p.fx.introText || p.title; bigText(x, W, H, tt, t < 4 ? clamp(Math.min((t - .3) / .6, (4 - t) / .8), 0, 1) : 0, p.fx.introSub || ''); }
-    if (p.fx.outro && p.fx.outroText) bigText(x, W, H, p.fx.outroText, clamp(Math.min((t - (dur - 5)) / .8, (dur - t) / .6 + .5), 0, 1));
-    if (!(p.fx.intro && t < 4)) drawCaps(x, W, H, p, t, CL);
+    const TH = p.thumb && p.thumb.on && t < (p.thumb.dur || 0), EN = p.endc && p.endc.on && t > dur - (p.endc.dur || 0);
+    if (TH) drawThumb(x, W, H, p, clamp((p.thumb.dur - t) / .35, 0, 1));
+    else if (EN) drawEnd(x, W, H, p, (t - (dur - p.endc.dur)) / .6);
+    else drawCaps(x, W, H, p, t, CL);
     const fi = p.fx.fadeIn || 0, fo = p.fx.fadeOut || 0;
     let blk = 0; if (fi && t < fi) blk = 1 - t / fi; if (fo && t > dur - fo) blk = Math.max(blk, (t - (dur - fo)) / fo);
     if (blk > 0) { x.fillStyle = `rgba(0,0,0,${clamp(blk, 0, 1)})`; x.fillRect(0, 0, W, H); }
   }
+
+  /* ═════════ 🖼 썸네일 · 🏁 엔딩 카드 ═════════ */
+  const CARD = { key: null, img: null };
+  let LOGO = null;
+  function logo() { if (!LOGO) { LOGO = new Image(); LOGO.src = 'icon-192.png'; } return LOGO; }
+  function cardKey(p) { const T = p.thumb || {}; return T.src === 'hero' ? 'h:' + ((p.look || {}).heroImg || '') : T.src === 'file' ? 'f:' + (T.file || '') : 's:' + (((p.scenes || [])[T.k || 0] || {}).file || ''); }
+  async function loadCards(p) {
+    logo(); const key = cardKey(p); if (key === CARD.key) return; CARD.key = key; CARD.img = null;
+    const id = key.slice(2); if (!id) return; const blob = await MV.getFile(id); if (!blob || CARD.key !== key) return;
+    try {
+      if (/^video/.test(blob.type)) { const u = URL.createObjectURL(blob), v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto';
+        await new Promise(r => { v.onloadeddata = r; v.onerror = r; setTimeout(r, 6000); v.src = u; }); await MV.seekVideo(v, Math.min(1, (v.duration || 2) / 2));
+        const c = document.createElement('canvas'); c.width = v.videoWidth || 640; c.height = v.videoHeight || 360; c.getContext('2d').drawImage(v, 0, 0, c.width, c.height); URL.revokeObjectURL(u); if (CARD.key === key) CARD.img = c; }
+      else { const b0 = await createImageBitmap(blob), k = Math.min(1, 1920 / Math.max(b0.width, b0.height)); const bm = k < 1 ? await createImageBitmap(blob, { resizeWidth: Math.round(b0.width * k), resizeHeight: Math.round(b0.height * k), resizeQuality: 'high' }) : b0; if (CARD.key === key) CARD.img = bm; }
+    } catch (e) { /* 그림 없이 */ }
+  }
+  function drawThumb(x, W, H, p, a) {
+    const T = p.thumb || {}, im = CARD.img; x.save(); x.globalAlpha = a == null ? 1 : a;
+    if (im) { const iw = im.width, ih = im.height, k = Math.max(W / iw, H / ih); x.drawImage(im, (W - iw * k) / 2, (H - ih * k) / 2, iw * k, ih * k); }
+    else { const gr = x.createLinearGradient(0, 0, W, H); gr.addColorStop(0, '#312e81'); gr.addColorStop(1, '#db2777'); x.fillStyle = gr; x.fillRect(0, 0, W, H); }
+    const title = T.title || p.title || '', sub = T.sub || '';
+    if (title || sub) {
+      const top = T.pos === 'top', mid = T.pos === 'middle', gr = top ? x.createLinearGradient(0, 0, 0, H * .5) : x.createLinearGradient(0, H * .5, 0, H);
+      if (!mid) { gr.addColorStop(top ? 0 : 1, 'rgba(0,0,0,.6)'); gr.addColorStop(top ? 1 : 0, 'rgba(0,0,0,0)'); x.fillStyle = gr; x.fillRect(0, top ? 0 : H * .5, W, H * .5); }
+      const fam = g.BKFX ? g.BKFX.fam(T.font || 'blackhan') : FONT, base = Math.round(Math.min(W, H) * .13); x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineJoin = 'round';
+      x.font = `900 ${base}px ${fam}`; const rows = split2(x, title, base, W * .9); let f = base; for (const r of rows) { x.font = `900 ${f}px ${fam}`; while (f > 14 && x.measureText(r).width > W * .9) { f -= 2; x.font = `900 ${f}px ${fam}`; } }
+      const lh = f * 1.15, fs = Math.round(f * .42), totalH = rows.length * lh + (sub ? fs * 1.6 : 0); let y = top ? H * .1 + lh / 2 : mid ? H / 2 - totalH / 2 + lh / 2 : H * .9 - totalH + lh / 2;
+      x.font = `900 ${f}px ${fam}`; rows.forEach(r => { x.lineWidth = f * .16; x.strokeStyle = '#000'; x.strokeText(r, W / 2, y); x.fillStyle = T.color || '#ffffff'; x.fillText(r, W / 2, y); y += lh; });
+      if (sub) { x.font = `800 ${fs}px ${FONT}`; x.lineWidth = fs * .18; x.strokeStyle = '#000'; x.strokeText(sub, W / 2, y - lh / 2 + fs * .9); x.fillStyle = '#fde68a'; x.fillText(sub, W / 2, y - lh / 2 + fs * .9); }
+    }
+    x.restore();
+  }
+  function drawEnd(x, W, H, p, a) {
+    const E = p.endc || {}; x.save(); x.globalAlpha = clamp(a, 0, 1) * .78; x.fillStyle = '#0b0820'; x.fillRect(0, 0, W, H); x.globalAlpha = clamp(a, 0, 1);
+    const u = Math.min(W, H); x.textAlign = 'center'; x.textBaseline = 'middle'; let y = H * .4;
+    const lg = logo(); if (E.logo !== false && lg.complete && lg.naturalWidth) { const s2 = u * .26; x.save(); x.beginPath(); if (x.roundRect) x.roundRect(W / 2 - s2 / 2, y - s2 / 2, s2, s2, s2 * .22); else x.rect(W / 2 - s2 / 2, y - s2 / 2, s2, s2); x.clip(); x.drawImage(lg, W / 2 - s2 / 2, y - s2 / 2, s2, s2); x.restore(); y += s2 * .5 + u * .07; }
+    if (E.by) { x.font = `900 ${Math.round(u * .085)}px ${FONT}`; x.fillStyle = '#fde68a'; x.fillText(E.by, W / 2, y); y += u * .1; }
+    if (E.msg) { x.font = `700 ${Math.round(u * .055)}px ${FONT}`; x.fillStyle = '#ffffff'; x.fillText(E.msg, W / 2, y); }
+    x.restore();
+  }
+  MV.loadCards = loadCards;
+  MV.thumbImage = async function (p, W, H) { await loadCards(p); try { await document.fonts.load(`900 60px ${g.BKFX ? g.BKFX.fam((p.thumb || {}).font || 'blackhan') : FONT}`, (p.thumb || {}).title || p.title || '가'); } catch (e) { /* 기본 */ } const c = document.createElement('canvas'); c.width = W; c.height = H; drawThumb(c.getContext('2d'), W, H, p, 1); return await new Promise(r => c.toBlob(r, 'image/jpeg', .92)); };
 
   function outSize(ratio, q) { const s = q === 1080 ? 1080 : 720, l = q === 1080 ? 1920 : 1280; return ratio === '9:16' ? [s, l] : [l, s]; }
 
@@ -171,7 +219,8 @@
       P.refresh(); await P.seek(P.audio.currentTime || 0);
     };
     P.refresh = function () { P.CL = P.p ? capLines(P.p) : null; };
-    P.time = () => P.audio.currentTime || 0;
+    P.time = () => P.p ? MV.song2tl(P.p, P.audio.currentTime || 0) : (P.audio.currentTime || 0);
+    P.segFix = function () { const p = P.p; if (!p || !p.song || !p.song.segs) return; const x = P.audio.currentTime, S = MV.segs(p); for (let k = 0; k < S.length; k++) { const [a, b] = S[k]; if (x < a - .02) { P.audio.currentTime = a; return; } if (x < b - .03) return; if (k === S.length - 1) { P.audio.pause(); return; } } };
     P.sfx = function (k) { try { const F = g.BKFX; if (!F) return; const C = P.ac || (P.ac = new (g.AudioContext || g.webkitAudioContext)()); if (C.state === 'suspended') C.resume(); const gn = C.createGain(); gn.gain.value = (P.p && P.p.fx.sfxVol) || .8; gn.connect(C.destination); F.sfx(C, gn, k, C.currentTime + .02); } catch (e) { /* 소리 없음 */ } };
     P.playing = () => !P.audio.paused;
     P.syncVideos = function (t, play) {
@@ -182,7 +231,7 @@
     };
     P.draw = function () { if (!P.p) return; const t = P.time(); drawFrame(P.x, P.cv.width, P.cv.height, P.p, t, P.CL); };
     P.loop = function () {
-      P.raf = 0; if (!P.p) return; const t = P.time(), i = MV.sceneAt(P.p, t);
+      P.raf = 0; if (!P.p) return; if (P.playing()) P.segFix(); const t = P.time(), i = MV.sceneAt(P.p, t);
       if (i !== P.cur) { P.cur = i; near(P.p, i); }
       if (P.stopAt != null && t >= P.stopAt) { P.pause(); P.stopAt = null; }
       if (P.playing() && P.lastT != null && t > P.lastT && t - P.lastT < .5) for (const z of (P.p.sfx || [])) if (z.at > P.lastT && z.at <= t) P.sfx(z.k);
@@ -198,7 +247,7 @@
     P.pause = function () { P.audio.pause(); if (!P.p) return; P.syncVideos(P.time(), false); P.draw(); P.onTime && P.onTime(P.time()); };
     P.toggle = () => P.playing() ? P.pause() : P.play();
     P.seek = async function (t) {
-      if (!P.p) return; t = clamp(t, 0, (P.p.song && P.p.song.dur) || 0); try { P.audio.currentTime = t; } catch (e) { /* 아직 */ }
+      if (!P.p) return; t = clamp(t, 0, (P.p.song && P.p.song.dur) || 0); try { P.audio.currentTime = MV.tl2song(P.p, t); } catch (e) { /* 아직 */ } loadCards(P.p);
       const i = MV.sceneAt(P.p, t); P.cur = i; await near(P.p, i);
       for (const s of [P.p.scenes[i - 1], P.p.scenes[i], P.p.scenes[i + 1]]) { const m = s && s.file && get(s.file); if (m && m.vid) await MV.seekVideo(m.vid, srcTime(s, m, Math.max(t, s.s))); }
       P.draw(); P.onTime && P.onTime(t);
@@ -225,9 +274,10 @@
     const OAC = g.OfflineAudioContext || g.webkitOfflineAudioContext;
     const dec = await new Promise((res, rej) => { const c = new OAC(2, 44100, 44100); const q = c.decodeAudioData(ab, res, () => rej(new Error('노래 파일을 읽을 수 없어요 (MP3 · M4A · WAV)'))); if (q && q.then) q.then(res, () => {}); });
     const total = p.song.dur || dec.duration, oc = new OAC(2, Math.ceil(total * SR), SR);
-    const s = oc.createBufferSource(); s.buffer = dec; const gn = oc.createGain(); const v = p.fx.vol == null ? 1 : p.fx.vol;
-    gn.gain.setValueAtTime(v, 0); const fo = Math.min(p.fx.fadeOut || 0, total / 3); if (fo > 0) { gn.gain.setValueAtTime(v, Math.max(0, total - fo)); gn.gain.linearRampToValueAtTime(0, total); }
-    s.connect(gn); gn.connect(oc.destination); s.start(0);
+    const gn = oc.createGain(); const v = p.fx.vol == null ? 1 : p.fx.vol; let acc = 0;
+    for (const [a, b] of MV.segs(p)) { const s = oc.createBufferSource(); s.buffer = dec; s.connect(gn); s.start(acc, a, Math.max(0, b - a)); acc += b - a; }
+    const afi = Math.min(p.fx.afi || 0, total / 3); if (afi > 0) { gn.gain.setValueAtTime(0, 0); gn.gain.linearRampToValueAtTime(v, afi); } else gn.gain.setValueAtTime(v, 0); const fo = Math.min(p.fx.fadeOut || 0, total / 3); if (fo > 0) { gn.gain.setValueAtTime(v, Math.max(0, total - fo)); gn.gain.linearRampToValueAtTime(0, total); }
+    gn.connect(oc.destination);
     if (g.BKFX && (p.sfx || []).length) { const sg = oc.createGain(); sg.gain.value = p.fx.sfxVol || .8; sg.connect(oc.destination); for (const z of p.sfx) if (z.at < total) g.BKFX.sfx(oc, sg, z.k, Math.max(0, z.at)); }
     return await new Promise((res, rej) => { oc.oncomplete = e => res(e.renderedBuffer); const q = oc.startRendering(); if (q && q.then) q.then(res, rej); });
   }
@@ -252,6 +302,7 @@
     const ve = new VideoEncoder({ output: (c, m) => mux.addVideoChunk(c, m), error: e => { err = e; } }); ve.configure(vcfg);
     const nF = Math.max(1, Math.round(total * fps)), fd = Math.round(1e6 / fps), CL = capLines(p), t0 = performance.now();
     for (const m of MEDIA.values()) if (m.vid) m.vid.pause();
+    await loadCards(p); try { if (g.BKFX && p.thumb) await document.fonts.load(`900 60px ${g.BKFX.fam(p.thumb.font || 'blackhan')}`, p.thumb.title || p.title || '가'); } catch (e) { /* 기본 */ }
     let lastI = -2;
     try {
       for (let f = 0; f < nF; f++) {

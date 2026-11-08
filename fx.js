@@ -98,7 +98,7 @@ function drawSticker(x, W, H, it, t) {
 }
 
 /* ── ✨ 화면 효과 ── */
-const EFX = { punch: '💥 확 줌인', shake: '🫨 흔들림', flash: '⚡ 번쩍', vignette: '🌑 가장자리 어둡게', grain: '🎞 옛날 필름', mirror: '↔️ 좌우 뒤집기', heart: '💗 하트 날리기', confetti: '🎊 꽃가루', snow: '❄️ 눈 내림', petal: '🌸 꽃잎' };
+const EFX = { punch: '💥 확 줌인', shake: '🫨 흔들림', flash: '⚡ 번쩍', vignette: '🌑 가장자리 어둡게', grain: '🎞 옛날 필름', mirror: '↔️ 좌우 뒤집기', heart: '💗 하트 날리기', confetti: '🎊 꽃가루', snow: '❄️ 눈 내림', petal: '🌸 꽃잎', slowzoom: '🔭 천천히 다가가기', lightleak: '🌅 빛 번짐', bokeh: '🫧 보케 불빛', rain: '🌧 비 내림', stars: '🌟 별 반짝', glow: '💡 뽀얀 빛', heartbeat: '💓 두근 줌', bars: '🎞 영화 띠' };
 const EFX_DUR = { punch: .8, flash: .5, shake: 1 };
 const rnd = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
 /** 장면을 그리기 전에 화면을 움직이는 효과 (줌 · 흔들림 · 뒤집기) */
@@ -108,6 +108,8 @@ function preTransform(x, W, H, list, t) {
     if (it.k === 'punch') { const s = 1 + .22 * easeOut(el / .18) * (1 - clamp((el - it.dur + .3) / .3, 0, 1)); x.translate(W / 2, H / 2); x.scale(s, s); x.translate(-W / 2, -H / 2); }
     else if (it.k === 'shake') { const k = Math.min(W, H) * .025 * (1 - clamp(el / it.dur, 0, 1) * .5); x.translate(Math.sin(el * 63) * k, Math.cos(el * 51) * k); }
     else if (it.k === 'mirror') { x.translate(W, 0); x.scale(-1, 1); }
+    else if (it.k === 'slowzoom') { const s2 = 1 + .12 * clamp(el / Math.max(.5, it.dur), 0, 1); x.translate(W / 2, H / 2); x.scale(s2, s2); x.translate(-W / 2, -H / 2); }
+    else if (it.k === 'heartbeat') { const ph = (el % .8) / .8, s2 = 1 + .05 * Math.max(0, Math.sin(ph * Math.PI * 2)) * (ph < .5 ? 1 : 0); x.translate(W / 2, H / 2); x.scale(s2, s2); x.translate(-W / 2, -H / 2); }
   }
 }
 let NOISE = null;
@@ -123,6 +125,12 @@ function overlay(x, W, H, it, t) {
     const n = noise(), f = Math.floor(t * 24); x.globalAlpha = .55 * a; x.drawImage(n, -(rnd(f) * 80), -(rnd(f + 9) * 80), W + 160, H + 160);
     x.globalAlpha = .35 * a; x.strokeStyle = '#fff'; x.lineWidth = 1.5; for (let i = 0; i < 2; i++) { const sx = rnd(f * 3 + i) * W; x.beginPath(); x.moveTo(sx, 0); x.lineTo(sx + 4, H); x.stroke(); }
   }
+  else if (it.k === 'lightleak') { x.globalAlpha = .55 * a; x.globalCompositeOperation = 'screen'; const cx = W * (.2 + .6 * (.5 + .5 * Math.sin(el * .7))), gr = x.createRadialGradient(cx, H * .3, 0, cx, H * .3, Math.max(W, H) * .7); gr.addColorStop(0, 'rgba(255,170,90,.9)'); gr.addColorStop(.5, 'rgba(255,90,120,.35)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = gr; x.fillRect(0, 0, W, H); x.globalCompositeOperation = 'source-over'; }
+  else if (it.k === 'glow') { x.globalAlpha = .35 * a; x.globalCompositeOperation = 'screen'; x.fillStyle = 'rgba(255,240,230,.6)'; x.fillRect(0, 0, W, H); x.globalCompositeOperation = 'source-over'; }
+  else if (it.k === 'bars') { const bh = H * .11 * a; x.fillStyle = '#000'; x.fillRect(0, 0, W, bh); x.fillRect(0, H - bh, W, bh); }
+  else if (it.k === 'bokeh') { x.globalCompositeOperation = 'screen'; for (let i = 0; i < 18; i++) { const px = (rnd(i * 3) + Math.sin(el * .3 + i) * .03) * W, py = ((rnd(i * 7) - el * .02 * (1 + rnd(i))) % 1 + 1) % 1 * H, r = Math.min(W, H) * (.03 + rnd(i * 5) * .06); const gr = x.createRadialGradient(px, py, 0, px, py, r); gr.addColorStop(0, `rgba(255,${200 + Math.round(rnd(i) * 55)},150,${.5 * a})`); gr.addColorStop(1, 'rgba(255,220,150,0)'); x.fillStyle = gr; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill(); } x.globalCompositeOperation = 'source-over'; }
+  else if (it.k === 'rain') { x.globalAlpha = .5 * a; x.strokeStyle = '#dbeafe'; x.lineWidth = Math.max(1, W / 400); for (let i = 0; i < 70; i++) { const px = rnd(i * 13) * W, py = ((rnd(i * 5) + el * (1.2 + rnd(i))) % 1) * H, l = H * .05; x.beginPath(); x.moveTo(px, py); x.lineTo(px - l * .2, py + l); x.stroke(); } x.fillStyle = 'rgba(30,41,59,.18)'; x.fillRect(0, 0, W, H); }
+  else if (it.k === 'stars') { x.textAlign = 'center'; x.textBaseline = 'middle'; for (let i = 0; i < 16; i++) { const tw = .5 + .5 * Math.sin(el * 4 + i * 1.7); x.globalAlpha = a * tw; x.font = `${Math.min(W, H) * (.03 + rnd(i * 9) * .03)}px "Noto Color Emoji",sans-serif`; x.fillText('✨', rnd(i * 11) * W, rnd(i * 17) * H * .7); } }
   else if (it.k === 'heart' || it.k === 'confetti' || it.k === 'snow' || it.k === 'petal') {
     const N = it.k === 'snow' ? 40 : 26, up = it.k === 'heart', sz = Math.min(W, H) * (it.k === 'snow' ? .022 : .05), cols = ['#ff4d6d', '#ffe14d', '#7dd3fc', '#86efac', '#c4b5fd', '#fdba74'];
     x.globalAlpha = a; x.textAlign = 'center'; x.textBaseline = 'middle';

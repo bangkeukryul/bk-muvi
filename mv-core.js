@@ -39,6 +39,11 @@
     });
   };
 
+  /* ── 📥 내 사진 보관함 (BK쇼츠 · BK에딧이 같이 쓰는 'bk-lib') 읽기만 ── */
+  function libDb() { return new Promise(res => { let r; try { r = indexedDB.open('bk-lib'); } catch (e) { return res(null); } r.onupgradeneeded = () => { try { r.transaction.abort(); } catch (e) { /* 없음 */ } }; r.onerror = () => res(null); r.onsuccess = () => { const d = r.result; if (!d.objectStoreNames.contains('m') || !d.objectStoreNames.contains('f')) { d.close(); return res(null); } res(d); }; }); }
+  MV.libList = async function () { const d = await libDb(); if (!d) return []; return new Promise(res => { const q = d.transaction('m').objectStore('m').getAll(); q.onsuccess = () => { d.close(); res((q.result || []).filter(o => o.kind === 'image' || o.kind === 'video').sort((a, b) => (b.at || 0) - (a.at || 0))); }; q.onerror = () => { d.close(); res([]); }; }); };
+  MV.libGet = async function (id) { const d = await libDb(); if (!d) return null; return new Promise(res => { const q = d.transaction('f').objectStore('f').get(id); q.onsuccess = () => { d.close(); res(q.result || null); }; q.onerror = () => { d.close(); res(null); }; }); };
+
   /* ── 새 작품 ── */
   MV.newProject = function () {
     const now = Date.now();
@@ -56,7 +61,18 @@
     };
   };
   /* 옛 작품에 효과 칸 채우기 */
-  MV.fixFx = function (p) {
+  MV.fixCards = function (p) {
+    if (!p.thumb) p.thumb = { on: true, dur: 2.5, src: 'scene', k: 0, file: null, title: (p.fx && p.fx.introText) || '', sub: (p.fx && p.fx.introSub) || '', pos: 'bottom', color: '#ffffff', font: 'blackhan' };
+    if (!p.endc) p.endc = { on: true, dur: 5, by: 'BK AGENT', msg: (p.fx && p.fx.outroText) || '들어 주셔서 감사합니다', logo: true };
+    if (p.fx) { p.fx.intro = false; p.fx.outro = false; }
+    if (p.song && !p.song.full) p.song.full = p.song.dur;
+    return p;
+  };
+  /* 노래 구간 (앞 · 뒤 자르기 · 구간 삭제): segs = 원래 노래에서 쓰는 [시작, 끝] 목록. 화면 시간 ↔ 노래 시간 */
+  MV.segs = p => (p.song && p.song.segs && p.song.segs.length) ? p.song.segs : [[0, (p.song && (p.song.full || p.song.dur)) || 0]];
+  MV.tl2song = function (p, t) { let acc = 0; const S = MV.segs(p); for (const [a, b] of S) { if (t <= acc + (b - a) + 1e-6) return a + Math.max(0, t - acc); acc += b - a; } const l = S[S.length - 1]; return l[1]; };
+  MV.song2tl = function (p, x) { let acc = 0; const S = MV.segs(p); for (const [a, b] of S) { if (x < a) return acc; if (x <= b + 1e-6) return acc + (x - a); acc += b - a; } return acc; };
+  MV.fixFx = function (p) { MV.fixCards(p);
     p.efx = p.efx || []; p.stk = p.stk || []; p.sfx = p.sfx || []; const f = p.fx;
     if (f.tdur == null) f.tdur = .6; if (!f.color) f.color = 'none'; if (f.sfxVol == null) f.sfxVol = .8; if (f.trans === 'flash') f.trans = 'white';
     (p.scenes || []).forEach(s => { if (s.tr === 'flash') s.tr = 'white'; });
@@ -74,16 +90,19 @@
       if (/^[\[【]\s*(chorus|hook|후렴)/i.test(t)) sec = 'chorus'; else if (/^[\[【]\s*(verse|pre|bridge|intro|outro|instrumental|\d\s*절|브릿지|간주)/i.test(t)) sec = '';
       if (!t || /^[\[(（【].*[\])）】]$/.test(t)) return;     // [후렴] (간주) 같은 표시
       if (/^(verse|chorus|bridge|intro|outro|pre-?chorus|hook|간주|전주|후주|후렴|브릿지)\s*\d*\s*:?$/i.test(t)) return;
+      if (s == null && /[:：]\s*$/.test(t)) return;                                    // 「…정보입니다:」 같은 설명 줄
+      if (s == null && /(입니다|드릴게요|드립니다|해 ?드렸|정리했|타임라인|아래는|다음은|가사입니다|가사예요)/.test(t) && t.length > 12) return;
       out.push({ t: t.replace(/^[-•·]\s*/, ''), s, e: null, sec });
     });
-    return { lines: out, timed: timed > 0 && timed >= out.length * 0.6 };
+    const tim = timed > 0 && timed >= out.length * 0.6;
+    return { lines: tim ? out.filter(l => l.s != null) : out, timed: tim };
   };
 
   /* ── 장면 칸 나누기: 곡 길이 ÷ 한 장면 길이 ── */
   MV.planScenes = function (p) {
     const dur = (p.song && p.song.dur) || 0, L = p.clipLen || 8; if (!dur) return [];
-    const n = Math.max(1, Math.ceil(dur / L - 0.25)), step = dur / n, old = p.scenes || [], out = [];
-    for (let i = 0; i < n; i++) { const o = old[i] || {}; out.push({ id: o.id || ('s' + i + '_' + Date.now().toString(36)), s: +(i * step).toFixed(2), e: +((i + 1) * step).toFixed(2), file: o.file || null, kind: o.kind || null, name: o.name || '', prompt: o.prompt || '', ok: !!o.ok, off: o.off || 0, fx: o.fx || '', tr: o.tr || '' }); }
+    const st = p.thumb && p.thumb.on ? (p.thumb.dur || 0) : 0, n = Math.max(1, Math.ceil((dur - st) / L - 0.25)), step = (dur - st) / n, old = p.scenes || [], out = [];
+    for (let i = 0; i < n; i++) { const o = old[i] || {}; out.push({ id: o.id || ('s' + i + '_' + Date.now().toString(36)), s: i ? +(st + i * step).toFixed(2) : 0, e: +(st + (i + 1) * step).toFixed(2), file: o.file || null, kind: o.kind || null, name: o.name || '', prompt: o.prompt || '', ok: !!o.ok, off: o.off || 0, fx: o.fx || '', tr: o.tr || '' }); }
     for (let i = n; i < old.length; i++) if (old[i].file) MV.delFile(old[i].file);
     return out;
   };

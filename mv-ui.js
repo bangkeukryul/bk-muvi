@@ -276,27 +276,40 @@
   /* ═════════ 2. 장면 ═════════ */
   const KR = p => !(p.look && p.look.kr === false);
   const KR_LINE = '등장인물은 모두 한국 사람, 배경은 한국 (한국 거리 · 한국 집 · 한국 자연, 간판과 글씨는 한글).';
+  const GPT_URL = 'https://chatgpt.com/', GEM_URL = 'https://gemini.google.com/app';
+  const ratioKo = p => p.ratio === '9:16' ? '세로 9:16' : '가로 16:9';
   function sceneText(i) {
     const p = S.p, sc = p.scenes[i], ly = MV.sceneLines(p, sc), lk = p.look || {}, vid = p.mode !== 'image';
     const what = sc.prompt || (ly.length ? `가사 「${ly.join(' / ')}」의 감정을 담은 장면` : (i === 0 ? '노래가 시작되는 첫 장면, 분위기를 보여 주는 풍경' : '가사 없이 반주만 나오는 부분, 분위기를 이어 주는 장면'));
-    return [KR(p) ? KR_LINE : '', `${lk.style || '실사 시네마틱'} 스타일, ${p.ratio === '9:16' ? '세로 9:16' : '가로 16:9'} 화면.`,
-      lk.mood ? `전체 분위기: ${lk.mood}.` : '', lk.hero ? `주인공: ${lk.hero} (모든 장면에서 같은 얼굴 · 같은 옷).` : '',
+    return [`[장면 ${i + 1} / ${p.scenes.length} · ${p.title || 'BK뮤비'}]`, KR(p) ? KR_LINE : '', `${lk.style || '실사 시네마틱'} 스타일, ${ratioKo(p)} 화면.`,
+      lk.mood ? `전체 분위기: ${lk.mood}.` : '', lk.hero ? `주인공: ${lk.hero}.` : '', !vid ? '주인공이 나오는 장면이면 이 대화방의 주인공과 같은 얼굴 · 머리 · 옷으로 그려 주세요.' : (lk.hero ? '모든 장면에서 같은 얼굴 · 같은 옷.' : ''),
       `장면: ${what}`,
-      vid ? `${Math.round(sc.e - sc.s)}초 길이, 카메라가 천천히 움직이는 영화 같은 장면.` : '고화질 한 장의 이미지.',
-      '화면에 글자 · 자막 · 로고를 넣지 마세요. 대사나 말소리 없이.'].filter(Boolean).join('\n');
+      vid ? `${Math.round(sc.e - sc.s)}초 길이, 카메라가 천천히 움직이는 영화 같은 장면.` : `고화질 그림 한 장 (${ratioKo(p)}).`,
+      '화면에 글자 · 자막 · 로고를 넣지 마세요.' + (vid ? ' 대사나 말소리 없이.' : '')].filter(Boolean).join('\n');
   }
+  /* ChatGPT 「그림 방」 시작 글 — 주인공 새로 만들기 */
   function heroText() {
     const p = S.p, lk = p.look || {};
-    return [KR(p) ? '한국 사람.' : '', `${lk.style || '실사 시네마틱'} 스타일 인물 사진 한 장.`, `주인공: ${lk.hero || '이 노래의 주인공'}.`, lk.mood ? `분위기: ${lk.mood}.` : '',
-      '얼굴과 옷이 잘 보이는 정면 상반신, 자연스러운 표정.', KR(p) ? '배경은 한국의 자연스러운 장소.' : '', '화면에 글자 · 로고 넣지 않기.'].filter(Boolean).join('\n');
+    return [`[BK뮤비 「${p.title || '뮤직비디오'}」 그림 방]`, '이 대화방에서 뮤직비디오 그림을 차례로 만들 거예요. 먼저 주인공 그림 한 장을 그려 주세요.',
+      KR(p) ? '한국 사람.' : '', `${lk.style || '실사 시네마틱'} 스타일, ${ratioKo(p)}.`, `주인공: ${lk.hero || '이 노래의 주인공'}.`, lk.mood ? `분위기: ${lk.mood}.` : '',
+      '얼굴과 옷이 잘 보이는 상반신, 자연스러운 표정.', KR(p) ? '배경은 한국의 자연스러운 장소.' : '', '화면에 글자 · 로고 넣지 않기.',
+      '앞으로 제가 보내는 장면 글마다, 주인공이 나오면 이 주인공과 같은 얼굴 · 머리 · 옷으로 그림을 한 장씩 그려 주세요.'].filter(Boolean).join('\n');
+  }
+  /* ChatGPT 「그림 방」 시작 글 — 내 사진을 주인공으로 */
+  function heroShareText() {
+    const p = S.p, lk = p.look || {};
+    return [`[BK뮤비 「${p.title || '뮤직비디오'}」 그림 방]`, '첨부한 사진 속 사람이 뮤직비디오 주인공이에요.', '얼굴 · 머리 · 옷을 그대로 유지해서, 제가 이 대화방에 보내는 장면 글마다 그림을 한 장씩 그려 주세요.',
+      `${lk.style || '실사 시네마틱'} 스타일, ${ratioKo(p)}.`, KR(p) ? '등장인물은 한국 사람, 배경은 한국.' : '', '글자 · 로고는 넣지 않기.', '지금은 「알겠어요」라고만 대답하고, 장면 글을 받으면 그려 주세요.'].filter(Boolean).join('\n');
   }
   function planAIText() {
-    const p = S.p, lk = p.look || {}, vid = p.mode !== 'image';
-    return `[BK뮤비 장면 기획 요청]\n노래 「${p.title || '제목 없음'}」(길이 ${fmt0(p.song.dur)})로 뮤직비디오를 만들려고 해요.\n장면은 ${p.scenes.length}개이고, 장면 하나는 ${vid ? `${p.clipLen}초짜리 영상(구글 Flow)` : '그림 한 장'}이에요.\n` +
-      `그림 느낌: ${lk.style || '실사 시네마틱'}${lk.mood ? `\n전체 분위기: ${lk.mood}` : ''}${lk.hero ? `\n주인공: ${lk.hero}` : ''}\n\n` +
-      `아래에 장면마다 그 시간에 나오는 가사를 적었어요. 노래 전체가 하나의 이야기처럼 이어지게, 장면마다 ${vid ? 'Flow에 넣을 영상' : '그림 AI에 넣을 그림'} 설명을 한국어 한두 문장으로 써 주세요.\n` +
-      (KR(p) ? '- 모든 장면은 한국 사람 · 한국 배경으로 (한국 거리 · 집 · 자연, 간판은 한글)\n' : '') + `- 가사의 감정과 맞게 (밝은 부분은 밝게, 슬픈 부분은 차분하게)\n- 같은 주인공 · 같은 옷 · 같은 장소 느낌이 이어지게\n${vid ? '- 카메라 움직임도 넣기 (천천히 다가가기, 옆으로 흐르기 등)\n' : ''}- 화면에 글자 · 자막 · 로고는 넣지 않기\n- 다른 설명 없이 아래 형식으로만 써 주세요:\nS1: (설명)\nS2: (설명)\n\n` +
-      p.scenes.map((sc, i) => { const ly = MV.sceneLines(p, sc); return `S${i + 1} (${fmt0(sc.s)}~${fmt0(sc.e)}) 가사: ${ly.length ? ly.join(' / ') : (i === 0 ? '(전주)' : '(반주만)')}`; }).join('\n');
+    const p = S.p, lk = p.look || {}, vid = p.mode !== 'image', N = p.scenes.length;
+    return `[BK뮤비 「${p.title || '제목 없음'}」 장면 기획 요청]\n노래 길이 ${fmt0(p.song.dur)}로 뮤직비디오를 만들어요. ${vid ? `구글 Flow로 ${p.clipLen}초짜리 영상 ${N}개` : `ChatGPT로 그림 ${N}장`}을 만들 거예요. 당신은 기획만 해 주세요 (그림은 그리지 마세요).\n` +
+      `그림 느낌: ${lk.style || '실사 시네마틱'} · 화면: ${ratioKo(p)}${lk.mood ? `\n전체 분위기: ${lk.mood}` : ''}${lk.hero ? `\n주인공: ${lk.hero}` : ''}\n\n` +
+      `아래에 장면마다 그 시간에 나오는 가사를 적었어요. 노래 전체가 하나의 이야기처럼 이어지게, 장면마다 ${vid ? 'Flow에 넣을 영상' : 'ChatGPT에 넣을 그림'} 설명을 한국어 한두 문장으로 써 주세요.\n` +
+      (KR(p) ? '- 모든 장면은 한국 사람 · 한국 배경으로 (한국 거리 · 집 · 자연, 간판은 한글)\n' : '') +
+      `- 가사의 감정과 맞게 (밝은 부분은 밝게, 슬픈 부분은 차분하게)\n- 같은 주인공 · 같은 옷 · 같은 장소 느낌이 이어지게\n- 주인공이 안 나오는 장면(풍경 · 물건 · 손 · 뒷모습 · 거리)도 3~4장면에 1번꼴로 섞어 주세요\n${vid ? '- 카메라 움직임도 넣기 (천천히 다가가기, 옆으로 흐르기 등)\n' : ''}- 화면에 글자 · 자막 · 로고는 넣지 않기\n` +
+      `- 인사말 없이, 장면마다 아래 모양으로만 써 주세요 (장면 하나씩 복사하기 좋게):\n### 장면 1\n(설명)\n### 장면 2\n(설명)\n\n` +
+      p.scenes.map((sc, i) => { const ly = MV.sceneLines(p, sc); return `장면 ${i + 1} (${fmt0(sc.s)}~${fmt0(sc.e)}) 가사: ${ly.length ? ly.join(' / ') : (i === 0 ? '(전주)' : '(반주만)')}`; }).join('\n');
   }
   function parsePlan(t) {
     let n = 0, want = -1; const S2 = S.p.scenes;
@@ -310,46 +323,55 @@
   }
   /* ═════════ 3. 🎬 노래 · 장면 맞추기 = ① 채우기(한 번에) · ② 장면 · ③ 음악(자막) · ④ 잠금 ═════════ */
   function heroBox(p) {
-    const lk = p.look || {};
-    return `<div class="heroBox">${lk.heroThumb ? `<img src="${lk.heroThumb}" alt="">` : '<div class="heroNo">🧑</div>'}
-      <div class="bd"><b>🧑 주인공 사진 ${lk.heroLock ? '<span class="cpd ok">🔒 고정됨</span>' : ''}</b>
-        <p class="muted" style="margin:2px 0 6px">새로 만들거나, 가지고 있는 사진을 넣고 고정하세요. Flow에서 이 사진을 <b>재료(참고 이미지)</b>로 넣으면 뮤비 내내 같은 사람이 나와요.</p>
-        <div class="row"><button class="btn sm main" data-a="heroCopy">📋 주인공 그림 글 복사</button><button class="btn sm" data-a="heroPut">📂 내 사진 넣기</button>
-        ${lk.heroThumb ? (lk.heroLock ? '<button class="btn sm ghost" data-a="heroLock" data-v="0">🔓 고정 풀기</button>' : '<button class="btn sm ok" data-a="heroLock" data-v="1">🔒 이 사진으로 고정</button>') + '<button class="btn sm ghost" data-a="heroSave">⬇ 휴대폰에 저장</button>' : ''}</div></div></div>`;
+    const lk = p.look || {}, vid = p.mode !== 'image';
+    return `<div class="heroBox2">
+      <div class="hL">${lk.heroThumb ? `<img src="${lk.heroThumb}" alt="">` : '<div class="heroNo">🧑<small>주인공 없음</small></div>'}${lk.heroLock ? '<span class="cpd ok">🔒 고정됨</span>' : ''}</div>
+      <div class="hR">
+        <button class="btn sm main" data-a="heroCopy">📋 ChatGPT로 주인공 만들기</button>
+        <button type="button" class="pickBig" data-a="heroPut">📂 여기를 눌러<br><b>내 사진에서 주인공 고르기</b></button>
+        <div class="row"><button class="btn sm" data-a="heroLib">🗂 보관함</button><button class="btn sm" data-a="heroScene">🖼 장면 그림</button></div>
+        ${lk.heroThumb ? `<div class="row">${lk.heroLock ? '<button class="btn sm ghost" data-a="heroLock" data-v="0">🔓 풀기</button>' : '<button class="btn sm ok" data-a="heroLock" data-v="1">🔒 이 사진으로 고정</button>'}<button class="btn sm ghost" data-a="heroSave">⬇ 저장</button></div>
+        ${vid ? '' : '<button class="btn sm pink" data-a="heroShare">📤 ChatGPT에 주인공 보내기 (그림 방 시작)</button>'}` : ''}
+      </div></div>
+      <p class="muted" style="margin:6px 0 0">${vid ? 'Flow에서 이 사진을 <b>재료(참고 이미지)</b>로 넣으면 같은 사람이 나와요.' : 'ChatGPT <b>한 대화방(그림 방)</b>에서 주인공 → 장면 1 → 2 … 차례로 만들면 얼굴이 덜 틀어져요.'}</p>`;
   }
   function scnPart(p) {
-    const sc = p.scenes, lk = p.look || (p.look = {}), L = !!p.locked, filled = sc.filter(s => s.file).length, oks = sc.filter(s => s.ok).length, vid = p.mode !== 'image', dis = L ? ' disabled' : '';
-    return `<div class="note blue">🎵 ${fmt0(p.song.dur)} 노래 → <b>장면 ${sc.length}개</b> (한 장면 약 ${p.clipLen}초)</div>
-      <details class="grp"><summary>🎨 분위기 · 주인공</summary>
-        <div class="field"><label>⏱ 장면 하나 길이</label><div class="chips">${[4, 6, 8, 10].map(v => chip('clipLen', v, p.clipLen === v, v + '초' + (v === 8 ? ' (Flow)' : ''))).join('')}</div></div>
-        <div class="field"><label>🛠 만드는 방법</label><div class="chips">${chip('mode', 'video', vid, '🎬 영상 (Flow)')}${chip('mode', 'image', !vid, '🖼 그림 · 사진')}</div></div>
-        <div class="field"><label>🎨 그림 느낌</label><div class="chips">${STYLES.map(s => chip('style', s, lk.style === s, s)).join('')}</div></div>
+    const sc = p.scenes, lk = p.look || (p.look = {}), L = !!p.locked, filled = sc.filter(s => s.file).length, vid = p.mode !== 'image', dis = L ? ' disabled' : '', k = Math.min((p.cpNext || 0) + 1, sc.length), np = sc.filter(s => s.prompt).length;
+    return `<div class="note blue">🎵 ${fmt0(p.song.dur)} 노래 → <b>${vid ? `영상 ${sc.length}개` : `그림 ${sc.length}장`}</b>${vid ? ` (한 영상 ${p.clipLen}초)` : ''}</div>
+      <details class="grp" open><summary>🧑 ① 주인공 ${lk.heroLock ? '<span class="cpd ok">🔒</span>' : ''}</summary>${heroBox(p)}</details>
+      <details class="grp" open><summary>🛠 ② 만드는 방법 · 분위기</summary>
+        <div class="chips">${chip('mode', 'image', !vid, '🖼 그림 · 사진 (기본 · ChatGPT)')}${chip('mode', 'video', vid, '🎬 영상 (Flow)')}</div>
+        ${vid ? `<div class="field"><label>⏱ 영상 길이</label><div class="chips">${[8, 16, 24, 30].map(v => chip('clipLen', v, p.clipLen === v, v + '초')).join('')}</div></div>`
+          : `<div class="field"><label>🖼 그림 장 수</label><div class="row cnt"><button class="btn sm" data-a="picN" data-v="-1"${dis}>－</button><b>${sc.length}장</b><button class="btn sm" data-a="picN" data-v="1"${dis}>＋</button><span class="muted">한 장 약 ${(p.song.dur / Math.max(1, sc.length)).toFixed(1)}초</span></div></div>`}
+        <div class="field"><label>🎨 그림 느낌</label><div class="chips">${STYLES.map(s2 => chip('style', s2, lk.style === s2, s2)).join('')}</div></div>
         <div class="field"><label>💭 노래 분위기</label><input type="text" id="fMood" value="${esc(lk.mood)}" placeholder="예: 봄 햇살, 그리움, 따뜻한 재회"></div>
-        <div class="field"><label>🧑 주인공 (같은 사람이 계속 나오게)</label><input type="text" id="fHero" value="${esc(lk.hero)}" placeholder="예: 20대 여성, 긴 생머리, 하얀 원피스"></div>
+        <div class="field"><label>🧑 주인공 설명 (같은 사람이 계속 나오게)</label><input type="text" id="fHero" value="${esc(lk.hero)}" placeholder="예: 20대 여성, 긴 생머리, 하얀 원피스"></div>
         <div class="field"><label>🇰🇷 한국 사람 · 한국 배경</label><div class="chips">${chip('kr', 1, KR(p), '켜기 (기본)')}${chip('kr', 0, !KR(p), '끄기')}</div></div>
-        ${heroBox(p)}
       </details>
-      <details class="grp"${sc.some(s => s.prompt) ? '' : ' open'}><summary>🤖 장면 글 한꺼번에 받기 ${sc.some(s => s.prompt) ? `<span class="cpd ok">${sc.filter(s => s.prompt).length}/${sc.length}</span>` : '(추천)'}</summary>
-        <p class="muted">① 아래 버튼 → 요청 글이 복사되고 Gemini가 열려요 → 붙여넣고 보내기<br>② 받은 답을 통째로 복사 → 「📋 붙여넣기 + 넣기」</p>
-        <div class="row"><button class="btn main" data-a="planAI">📋 요청 복사 + Gemini 열기</button></div>
-        <div class="field"><textarea id="fPlan" placeholder="S1: …&#10;S2: …" style="min-height:80px"></textarea></div>
+      <details class="grp"${np ? '' : ' open'}><summary>📝 ③ Gemini에게 기획 요청 ${np ? `<span class="cpd ok">${np}/${sc.length}</span>` : ''}</summary>
+        <p class="muted">Gemini는 <b>기획(장면 글)만</b> 해요. 버튼 → 붙여넣고 보내기 → 받은 답을 <b>통째로 복사</b> → 「📋 붙여넣기 + 넣기」</p>
+        <button class="btn main big" data-a="planAI">📋 기획 요청 복사 + Gemini 열기</button>
+        <div class="field"><textarea id="fPlan" placeholder="### 장면 1&#10;…" style="min-height:70px"></textarea></div>
         <div class="row"><button class="btn main" data-a="planPaste">📋 붙여넣기 + 넣기</button><button class="btn" data-a="planIn">✅ 장면 글 넣기</button></div>
       </details>
-      <details class="grp" open><summary>📋 Flow에 차례로 복사 · 넣기</summary>
-        <div class="nextCp"><div class="muted">지금 복사할 장면 <b>${Math.min((p.cpNext || 0) + 1, sc.length)} / ${sc.length}</b> · 복사함 ${sc.filter(s => s.cp).length}개</div>
-          <button class="btn main big" data-a="cpNext">📋 장면 ${Math.min((p.cpNext || 0) + 1, sc.length)} 글 복사 → ${vid ? 'Flow' : '그림 AI'}에 붙여넣기</button>
-          <div class="row"><button class="btn sm ghost" data-a="cpBack">◀ 앞 장면</button><button class="btn sm" data-a="flow">🌊 Flow 열기</button><button class="btn sm ghost" data-a="cpReset">↺ 처음부터</button></div></div>
+      <details class="grp" open><summary>${vid ? '🎬 ④ Flow에서 차례로 만들기' : '🖼 ④ ChatGPT 그림 방에서 차례로 만들기'}</summary>
+        <div class="nextCp"><div class="muted">지금 복사할 장면 <b>${k} / ${sc.length}</b> · 복사함 ${sc.filter(s2 => s2.cp).length}개</div>
+          <button class="btn main big" data-a="cpNext">📋 장면 ${k} 글 복사</button>
+          <div class="row"><button class="btn sm ghost" data-a="cpBack">◀ 앞 장면</button>${vid ? '<button class="btn sm" data-a="flow">🌊 Flow 열기</button>' : '<button class="btn sm" data-a="gptOpen">💬 ChatGPT 열기 (처음 한 번)</button>'}<button class="btn sm ghost" data-a="cpReset">↺ 처음부터</button></div>
+          ${vid ? '' : `<p class="muted" style="margin:6px 0 0">🔁 같은 그림 방으로 돌아가려면 휴대폰 <b>최근 앱 버튼(|||) → ChatGPT</b>. 「ChatGPT 열기」를 또 누르면 새 방이 열릴 수 있어요.</p>
+          <div class="row">${lk.heroThumb ? `<button class="btn sm" data-a="scShare">📤 장면 ${k} 글 + 주인공 사진 같이 보내기</button>` : ''}<button class="btn sm ghost" data-a="gemDraw">🆘 ChatGPT 한도일 때만: Gemini로 그리기</button></div>`}
+        </div>
       </details>
-      <details class="grp" open><summary>🎞 그림 1~${sc.length} 넣기 · 채움 ${filled}/${sc.length}</summary>
+      <details class="grp" open><summary>🎞 ⑤ ${vid ? '영상' : '그림'} 1~${sc.length} 넣기 · 채움 ${filled}/${sc.length}</summary>
         <div class="row"><button class="btn main" data-a="bulk"${dis}>📥 한꺼번에 고르기 → 1번부터 차례로</button><button class="btn" data-a="libOpen"${dis}>🗂 내 보관함에서</button></div>
         <p class="muted">칸마다 그 시간에 나올 가사가 같이 보여요 (자막 시간을 맞추기 전에는 대략). 하나씩 넣으려면 칸의 📂 를 누르세요.</p>
-        <div class="grid">${sc.map((s, i) => { const ly = MV.sceneLines(p, s); return `
-          <div class="sc${s.ok ? ' ok' : ''}">
-            <button class="th${p.ratio === '9:16' ? ' v916' : ''}" data-a="scPlay" data-v="${i}">${s.thumb ? `<img src="${s.thumb}" alt="">` : (s.file ? '🎞' : '비어 있음')}<span class="k">${i + 1}</span></button>
-            <div class="bd"><div class="hd">장면 ${i + 1} · ${fmt0(s.s)}~${fmt0(s.e)}${s.cp ? ' <span class="cpd">📋</span>' : ''}${s.file ? ' <span class="cpd ok">✅</span>' : ''}</div>
+        <div class="grid">${sc.map((s2, i) => { const ly = MV.sceneLines(p, s2); return `
+          <div class="sc${s2.ok ? ' ok' : ''}">
+            <button class="th${p.ratio === '9:16' ? ' v916' : ''}" data-a="scPlay" data-v="${i}">${s2.thumb ? `<img src="${s2.thumb}" alt="">` : (s2.file ? '🎞' : '비어 있음')}<span class="k">${i + 1}</span></button>
+            <div class="bd"><div class="hd">장면 ${i + 1} · ${fmt0(s2.s)}~${fmt0(s2.e)}${s2.cp ? ' <span class="cpd">📋</span>' : ''}${s2.file ? ' <span class="cpd ok">✅</span>' : ''}</div>
               <div class="ly">🎤 ${ly.length ? esc(ly.join(' / ')) : '<span class="muted">(반주)</span>'}</div>
-              <div class="pr">✏️ ${s.prompt ? esc(s.prompt) : '장면 글 없음 → 가사로 자동'}</div>
-              <div class="row"><button class="btn sm main" data-a="scCopy" data-v="${i}">📋 글</button><button class="btn sm" data-a="scPut" data-v="${i}"${dis}>📂 ${s.file ? '바꾸기' : '넣기'}</button>${s.file ? `<button class="btn sm ghost" data-a="scDel" data-v="${i}"${dis}>🗑</button>` : ''}<button class="btn sm" data-a="scPlay" data-v="${i}">▶</button><button class="btn sm ${s.ok ? 'ok' : 'ghost'}" data-a="scOk" data-v="${i}">👍</button><button class="btn sm ghost" data-a="scEdit" data-v="${i}">✏️</button></div>
+              <div class="pr">✏️ ${s2.prompt ? esc(s2.prompt) : '장면 글 없음 → 가사로 자동'}</div>
+              <div class="row"><button class="btn sm main" data-a="scCopy" data-v="${i}">📋 글</button><button class="btn sm" data-a="scPut" data-v="${i}"${dis}>📂 ${s2.file ? '바꾸기' : '넣기'}</button>${s2.file ? `<button class="btn sm ghost" data-a="scDel" data-v="${i}"${dis}>🗑</button>` : ''}<button class="btn sm" data-a="scPlay" data-v="${i}">▶</button><button class="btn sm ghost" data-a="scEdit" data-v="${i}">✏️</button></div>
             </div></div>`; }).join('')}</div>
       </details>`;
   }
@@ -409,6 +431,11 @@
     const kind = /^video/.test(f.type) ? 'video' : 'image', id = await MV.putFile(f, f.name);
     if (sc.file && !p.scenes.some((o, k) => k !== i && o.file === sc.file)) MV.delFile(sc.file);
     Object.assign(sc, { file: id, kind, name: f.name, ok: false, off: 0, thumb: await thumbOf(f) });
+  }
+  async function setHero(f) {
+    const p = S.p; if (p.look.heroImg) MV.delFile(p.look.heroImg);
+    p.look.heroImg = await MV.putFile(f, f.name || '주인공.jpg'); p.look.heroThumb = await thumbOf(f); p.look.heroLock = false; save(); render();
+    toast('🧑 주인공 사진을 넣었어요 · 맞으면 「🔒 이 사진으로 고정」', 3500);
   }
   function delScene(i) {
     const p = S.p, sc = p.scenes[i]; if (!sc || !sc.file) return;
@@ -703,9 +730,20 @@
       case 'ratio': p.ratio = v; await S.player.setProject(p, S.song); save(); return render();
       /* 2 */
       case 'clipLen': if (p.locked) return toast('🔒 잠겨 있어요'); if (p.scenes.some(s => s.file) && !confirm('장면 길이를 바꾸면 장면 칸 수가 바뀌어요. 넣은 영상은 앞에서부터 그대로 둘게요. 바꿀까요?')) return; p.clipLen = +v; p.scenes = MV.planScenes(p); save(); return render();
-      case 'mode': p.mode = v; save(); return render();
+      case 'mode': { if (p.locked) return toast('🔒 잠겨 있어요'); const was = p.mode; p.mode = v; if (v === 'video' && ![8, 16, 24, 30].includes(p.clipLen)) p.clipLen = 8; const n0 = p.scenes.length; const nw = MV.planScenes(Object.assign({}, p, { scenes: [] })).length;
+        if (nw < n0 && p.scenes.slice(nw).some(x => x.file) && !confirm(`장면이 ${n0}개 → ${nw}개로 줄어요. 뒤쪽에 넣은 그림 · 영상은 빠져요. 바꿀까요?`)) { p.mode = was; return render(); } p.scenes = MV.planScenes(p); save(); return render(); }
+      case 'picN': { if (p.locked) return toast('🔒 잠겨 있어요'); const n = clamp(p.scenes.length + +v, 2, 200); if (n < p.scenes.length && p.scenes[p.scenes.length - 1].file && !confirm(`${p.scenes.length}번 칸의 그림이 빠져요. 줄일까요?`)) return; p.picN = n; p.scenes = MV.planScenes(p); save(); return render(); }
+      case 'gptOpen': return g.open(GPT_URL, '_blank');
+      case 'gemDraw': { const k = clamp(p.cpNext || 0, 0, p.scenes.length - 1); return copyOpen(sceneText(k), GEM_URL, `📋 장면 ${k + 1} 글 복사 · Gemini 그림에는 ✦ 마크가 들어가요`); }
+      case 'heroShare': { const bl = await MV.getFile(p.look.heroImg); if (!bl) return toast('주인공 사진이 없어요'); const t = heroShareText(); await MV.copy(t); try { const f2 = new File([bl], '주인공.jpg', { type: bl.type || 'image/jpeg' }); if (navigator.canShare && navigator.canShare({ files: [f2] })) { await navigator.share({ files: [f2], text: t }); return toast('📤 ChatGPT를 고르세요 · 글이 빠졌으면 붙여넣기 (복사해 뒀어요)', 5000); } } catch (e) { if (e && e.name === 'AbortError') return; } return toast('이 휴대폰은 바로 보내기가 안 돼요 · ⬇ 저장 후 ChatGPT에서 ＋로 올리고 붙여넣기', 5000); }
+      case 'scShare': { const k = clamp(p.cpNext || 0, 0, p.scenes.length - 1), bl = await MV.getFile(p.look.heroImg); const t = sceneText(k) + '\n(첨부한 사진 속 주인공과 같은 얼굴 · 머리 · 옷으로)'; await MV.copy(t); p.scenes[k].cp = 1; p.cpNext = Math.min(k + 1, p.scenes.length - 1); save(); render();
+        try { const f2 = new File([bl], '주인공.jpg', { type: bl.type || 'image/jpeg' }); if (navigator.canShare && navigator.canShare({ files: [f2] })) await navigator.share({ files: [f2], text: t }); else toast('📋 글을 복사했어요 · 사진은 ChatGPT에서 ＋로 올려 주세요', 4000); } catch (e) { /* 취소 */ } return; }
+      case 'heroLib': { const list = await MV.libList(); if (!list.length) return toast('🗂 보관함이 비어 있어요', 3000); return sheet('🗂 보관함에서 주인공 고르기', `<div class="libGrid big">${list.filter(o => o.kind === 'image').map(o => `<button type="button" data-a="heroLibGo" data-v="${esc(o.id)}">${o.th ? `<img src="${o.th}" alt="">` : '🖼'}</button>`).join('')}</div>`); }
+      case 'heroLibGo': { sheetClose(); const f2 = await MV.libGet(v); if (!f2) return; return setHero(f2); }
+      case 'heroScene': { const list = p.scenes.map((x, i) => [x, i]).filter(a2 => a2[0].file && a2[0].kind === 'image'); if (!list.length) return toast('그림을 넣은 장면이 아직 없어요'); return sheet('🖼 장면 그림에서 주인공 고르기', `<div class="libGrid big">${list.map(([x, i]) => `<button type="button" data-a="heroSceneGo" data-v="${i}"><img src="${x.thumb}" alt=""><b>${i + 1}</b></button>`).join('')}</div>`); }
+      case 'heroSceneGo': { sheetClose(); const bl = await MV.getFile(p.scenes[+v].file); if (bl) return setHero(bl); return; }
       case 'style': p.look.style = v; save(); return render();
-      case 'planAI': return copyOpen(planAIText(), 'https://gemini.google.com/app', '📋 요청 글을 복사했어요 · Gemini에 붙여넣고 보내기');
+      case 'planAI': return copyOpen(planAIText(), GEM_URL, '📋 요청 글을 복사했어요 · Gemini에 붙여넣고 보내기');
       case 'planIn': { const n = parsePlan($('fPlan').value); save(); render(); return toast(n ? `✅ 장면 글 ${n}개를 넣었어요` : '⚠️ 「S1: …」 모양의 줄을 못 찾았어요', 3500); }
       case 'flow': return g.open(FLOW_URL, '_blank');
       case 'win': return winOpen(v, false);
@@ -714,17 +752,17 @@
       case 'winPlay': { const sc = p.scenes[S.win]; return S.player.play(Math.max(0, sc.s - (S.win ? .2 : 0)), sc.e + .25); }
       case 'winX': return winClose();
       case 'scDel': if (p.locked) return toast('🔒 잠겨 있어요'); if (!confirm(`장면 ${+v + 1}의 사진 · 영상을 뺄까요? (칸과 시간은 그대로예요)`)) return; delScene(+v); save(); if (S.win != null) { winRender(); S.player.seek(p.scenes[+v].s + .05); } else render(); return toast('🗑 뺐어요');
-      case 'heroPut': { if (p.look.heroLock && !confirm('고정한 주인공 사진을 바꿀까요?')) return; const [f2] = await pickFiles('image/*'); if (!f2) return; if (p.look.heroImg) MV.delFile(p.look.heroImg); p.look.heroImg = await MV.putFile(f2, f2.name); p.look.heroThumb = await thumbOf(f2); p.look.heroLock = false; save(); render(); return toast('🧑 사진을 넣었어요 · 맞으면 「🔒 이 사진으로 고정」'); }
+      case 'heroPut': { if (p.look.heroLock && !confirm('고정한 주인공 사진을 바꿀까요?')) return; const [f2] = await pickFiles('image/*'); if (!f2) return; return setHero(f2); }
       case 'heroLock': p.look.heroLock = v === '1'; save(); render(); return toast(v === '1' ? '🔒 이 사진으로 주인공을 고정했어요' : '🔓 고정을 풀었어요');
       case 'heroSave': { const bl = await MV.getFile(p.look.heroImg); if (!bl) return toast('사진을 찾을 수 없어요'); const u = URL.createObjectURL(bl), a2 = document.createElement('a'); a2.href = u; a2.download = (p.title || 'BK뮤비') + '_주인공.' + ((bl.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg')); document.body.appendChild(a2); a2.click(); a2.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); return toast('⬇ 휴대폰에 저장했어요 · Flow 재료에서 고르세요', 4000); }
       case 'capSpeed': p.cap.speed = v; linesChanged(); return render();
       case 'kr': p.look.kr = v === '1'; save(); return render();
-      case 'heroCopy': return copyOpen(heroText(), null, '📋 주인공 그림 글을 복사했어요 · Flow(이미지)에 붙여넣기');
+      case 'heroCopy': return copyOpen(heroText(), GPT_URL, '📋 주인공 그림 글을 복사했어요 · Flow(이미지)에 붙여넣기');
       case 'planPaste': { let t = ''; try { t = await navigator.clipboard.readText(); } catch (e) { /* 직접 */ } if (!t) { toast('칸을 길게 눌러 「붙여넣기」 후 「✅ 장면 글 넣기」를 눌러 주세요', 4000); return $('fPlan').focus(); } $('fPlan').value = t; const n = parsePlan(t); save(); render(); return toast(n ? `✅ 장면 글 ${n}개를 넣었어요` : '⚠️ 장면 글(S1: …)을 못 찾았어요 · Gemini 답을 통째로 복사했는지 봐 주세요', 4000); }
-      case 'cpNext': { const k = clamp(p.cpNext || 0, 0, p.scenes.length - 1); p.scenes[k].cp = 1; p.cpNext = Math.min(k + 1, p.scenes.length - 1); save(); await copyOpen(sceneText(k), null, `📋 장면 ${k + 1} 글 복사 · ${p.mode === 'image' ? '그림 AI' : 'Flow'}에 붙여넣기${k + 1 >= p.scenes.length ? ' · 마지막 장면이에요' : ''}`); return render(); }
+      case 'cpNext': { const k = clamp(p.cpNext || 0, 0, p.scenes.length - 1); p.scenes[k].cp = 1; p.cpNext = Math.min(k + 1, p.scenes.length - 1); save(); await copyOpen(sceneText(k), null, `📋 장면 ${k + 1} 글 복사 · ${p.mode === 'image' ? '최근 앱(|||) → ChatGPT 그림 방에 붙여넣기' : 'Flow에 붙여넣기'}${k + 1 >= p.scenes.length ? ' · 마지막 장면이에요' : ''}`); return render(); }
       case 'cpBack': p.cpNext = Math.max(0, (p.cpNext || 0) - 1); save(); return render();
       case 'cpReset': if (confirm('복사 표시를 지우고 장면 1부터 다시 할까요?')) { p.scenes.forEach(s => { s.cp = 0; }); p.cpNext = 0; save(); render(); } return;
-      case 'scCopy': p.scenes[+v].cp = 1; p.cpNext = Math.min(+v + 1, p.scenes.length - 1); save(); if (S.win == null) setTimeout(render, 50); return copyOpen(sceneText(+v), null, `📋 장면 ${+v + 1} 글을 복사했어요 · ${p.mode === 'image' ? '그림 AI' : 'Flow'}에 붙여넣기`);
+      case 'scCopy': p.scenes[+v].cp = 1; p.cpNext = Math.min(+v + 1, p.scenes.length - 1); save(); if (S.win == null) setTimeout(render, 50); return copyOpen(sceneText(+v), null, `📋 장면 ${+v + 1} 글을 복사했어요 · ${p.mode === 'image' ? 'ChatGPT 그림 방' : 'Flow'}에 붙여넣기`);
       case 'scPut': case 'scPut5': { if (a === 'scPut' && p.locked) return toast('🔒 잠겨 있어요'); const [f] = await pickFiles('video/*,image/*'); if (!f) return; await putScene(+v, f); save(); if (a === 'scPut5') editRefresh(); else if (S.win != null) winRender(); else render(); S.player.seek(p.scenes[+v].s + .05); return toast(`📂 장면 ${+v + 1}에 넣었어요 · ▶ 로 들어 보세요`); }
       case 'bulk': {
         if (p.locked) return toast('🔒 잠겨 있어요');

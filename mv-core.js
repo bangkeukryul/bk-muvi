@@ -51,7 +51,7 @@
       id: 'mv' + now, at: now, v: 3, title: '', step: 1, mk: null,
       song: null,              // { file, name, dur }
       lyricsRaw: '', lines: [],// [{ t, s, e }]  s/e: 초 (없으면 null)
-      ratio: '16:9', clipLen: 8, mode: 'video',
+      ratio: '16:9', clipLen: 8, mode: 'image',
       look: { mood: '', style: '실사 시네마틱', hero: '' },
       scenes: [],              // [{ id, s, e, file, kind, name, prompt, ok, off, fx, tr }]
       locked: false,
@@ -100,8 +100,8 @@
 
   /* ── 장면 칸 나누기: 곡 길이 ÷ 한 장면 길이 ── */
   MV.planScenes = function (p) {
-    const dur = (p.song && p.song.dur) || 0, L = p.clipLen || 8; if (!dur) return [];
-    const st = p.thumb && p.thumb.on ? (p.thumb.dur || 0) : 0, n = Math.max(1, Math.ceil((dur - st) / L - 0.25)), step = (dur - st) / n, old = p.scenes || [], out = [];
+    const dur = (p.song && p.song.dur) || 0, L = p.mode === 'image' ? 8 : (p.clipLen || 8); if (!dur) return [];
+    const st = p.thumb && p.thumb.on ? (p.thumb.dur || 0) : 0, n = p.mode === 'image' && p.picN ? p.picN : Math.max(1, Math.ceil((dur - st) / L - 0.25)), step = (dur - st) / n, old = p.scenes || [], out = [];
     for (let i = 0; i < n; i++) { const o = old[i] || {}; out.push({ id: o.id || ('s' + i + '_' + Date.now().toString(36)), s: i ? +(st + i * step).toFixed(2) : 0, e: +(st + (i + 1) * step).toFixed(2), file: o.file || null, kind: o.kind || null, name: o.name || '', prompt: o.prompt || '', ok: !!o.ok, off: o.off || 0, fx: o.fx || '', tr: o.tr || '' }); }
     for (let i = n; i < old.length; i++) if (old[i].file) MV.delFile(old[i].file);
     return out;

@@ -18,7 +18,7 @@
     else { if (i > 0) p.scenes[i - 1].e = c.e; else p.scenes[1].s = 0; p.scenes.splice(i, 1); }
     p.scenes.forEach(o => { if (o.reuse == null) return; if (o.reuse === i) o.reuse = null; else if (o.reuse > i) o.reuse--; });
     if (p.cpNext > i) p.cpNext--; if (c.file && !p.scenes.some(o => o.file === c.file)) MV.delFile(c.file); }
-  function pinSig(p) { return (p.scenes || []).filter(o => o.pin).map(o => `${o.id}:${o.s}:${o.e}:${o.file}`).join('|'); }
+  function pinSig(p) { const pz = (p.scenes || []).filter(o => o.pin); return pz.map(o => `${o.id}:${o.s}:${o.e}:${o.file}`).join('|') + '#' + (p.lines || []).filter(l => l.s != null && pz.some(o => l.s >= o.s && l.s < o.e)).map(l => `${l.t}:${l.s}:${l.e}`).join('|'); }
   function snap() { T.undo.push(snapOf(P())); if (T.undo.length > 40) T.undo.shift(); T.redo = []; }
   function restore(o) { const p = P(); KEYS.forEach(k => { p[k] = JSON.parse(o[k]); }); }
   function undo() { if (!T.undo.length) return U().toast('되돌릴 것이 없어요'); T.redo.push(snapOf(P())); restore(T.undo.pop()); changed(); U().toast('↩ 되돌렸어요'); }
@@ -110,7 +110,7 @@
         <div class="row"><button class="btn sm" data-a="fLyTap">👆 가사 톡</button></div>
         <div class="row"><button class="btn sm ${c.pin ? 'pinOn' : 'pinBtn'}" data-a="fPin" data-v="${i}"${dis}>${c.pin ? '🔓 고정 풀기' : '🔒 고정'}</button><button class="btn sm" data-a="scPut" data-v="${i}"${dis || pn}>📂 ${c.file ? '바꾸기' : '넣기'}</button>${c.file ? `<button class="btn sm ghost" data-a="scDel" data-v="${i}"${dis || pn}>🗑 빼기</button>` : ''}</div>
         <div class="row"><button class="btn sm hotSm" data-a="fTapGo"${dis}>🎵 톡톡 넘기기</button><button class="btn sm ghost keepSm" data-a="fKeep">${T.keep === 'follow' ? '🚃 뒤 장면 따라감' : '📍 뒤 장면 제자리'}</button><button class="btn sm ghost" data-a="scCopy" data-v="${i}">🔄 장면 다시 요청</button></div>
-        <p class="muted" style="margin:2px 0 0;font-size:.78rem">🔒 고정 = 다 맞춘 장면을 잠가서 그림 · 시간이 안 바뀌게 (자막 톡은 돼요) · 🗑 빼기 = 그림만 빼고 칸은 남겨요 · 🔪 분할 = 커서에서 장면을 둘로 나눠요 · ❌ 삭제 = 이 장면 칸을 없애요 · 🔄 다시 요청 = ChatGPT에 다시 그려 달라는 글 복사</p>
+        <p class="muted" style="margin:2px 0 0;font-size:.78rem">🔒 고정 = 다 맞춘 장면을 잠가서 그림 · 시간 · 자막이 안 바뀌게 · 🗑 빼기 = 그림만 빼고 칸은 남겨요 · 🔪 분할 = 커서에서 장면을 둘로 나눠요 · ❌ 삭제 = 이 장면 칸을 없애요 · 🔄 다시 요청 = ChatGPT에 다시 그려 달라는 글 복사</p>
         <div class="muted tapNow" style="margin-top:4px"></div>
       </div>
       <div class="row" style="margin-top:8px"><button class="btn sm" data-a="fSnap"${dis}>🧲 가사 줄에 맞춰 장면 넘기기</button><button class="btn sm" data-a="thSheet">🖼 썸네일</button><button class="btn sm" data-a="enSheet">🏁 엔딩</button></div>
@@ -178,7 +178,7 @@
       case 'fPlay': { const i = T.fsel != null ? T.fsel : sceneIdx(t), c = p.scenes[i]; T.fsel = i; return s.player.play(c.s, c.e - .02); }
       case 'fNext': { const i = Math.min(p.scenes.length - 1, (T.fsel != null ? T.fsel : sceneIdx(t)) + 1), c = p.scenes[i]; T.fsel = i; refreshView(); return s.player.play(c.s, c.e - .02); }
       case 'fLyTap': { if (!s.player.playing()) { const i = T.fsel != null ? T.fsel : sceneIdx(t), c = p.scenes[i]; return s.player.play(Math.max(0, c.s - .2), c.e + .25); } return U().act('tap', null, el); }
-      case 'fSnap': { const CL = MV.capLines(p); if (!CL.length) return U().toast('먼저 ③ 음악에서 가사 시간을 맞춰 주세요', 3500); snap(); let n = 0;
+      case 'fSnap': { const CL = MV.capLines(p); if (!CL.length) return U().toast('먼저 ① 자막에서 가사 시간을 맞춰 주세요', 3500); snap(); let n = 0;
         for (let j = 1; j < p.scenes.length; j++) { const b = p.scenes[j].s; let best = null; for (const c of CL) if (Math.abs(c.s - b) < 1.6 && (best == null || Math.abs(c.s - b) < Math.abs(best - b))) best = c.s; if (best != null && Math.abs(best - b) > .05) { if (setBoundary(j, best, 'stay')) n++; } }
         changed(); return U().toast(n ? `🧲 ${n}곳을 가사 줄 시작에 붙였어요` : '붙일 곳이 없어요 (1.6초 안쪽)'); }
     }
@@ -396,7 +396,7 @@
   }
   function refreshView() {
     const p = P(); if (!p || S().view !== 'stage') return;
-    const f = document.querySelector('[data-sub="① 채우기"]'); if (f && p.step === 3) { f.innerHTML = fillPart(); tlFit('fill'); U().tapShow(S().player.time()); }
+    const f = document.querySelector('[data-sub="② 화면"]'); if (f && p.step === 3) { f.innerHTML = fillPart(); tlFit('fill'); U().tapShow(S().player.time()); }
     const ed = document.querySelector('.edHost'); if (ed && p.step === 5) { ed.innerHTML = editPart(); tlFit('edit'); }
   }
   function onTime(t) {

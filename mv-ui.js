@@ -137,7 +137,7 @@
     const p = S.p, sc = p.scenes || [];
     if (n === 1) return !!(p.song || (p.mk && p.mk.out && p.mk.out.lyrics));
     if (n === 2) return !!(p.song && (p.lines || []).length);
-    if (n === 3) return !!p.locked;
+    if (n === 3) return !!p.locked || (p.scenes.length > 0 && p.scenes.every(x => x.pin));
     if (n === 4) return !!p.fxSeen;
     if (n === 5) return !!p.exported;
   }
@@ -149,7 +149,7 @@
     if (n === 4) { const k = (p.efx || []).length + (p.stk || []).length + (p.sfx || []).length; return p.fxSeen || k ? `효과 ${k}개` : ''; }
     if (n === 5) return p.exported ? 'MP4 저장함' : '';
   }
-  const DESC = { 1: '장르 · 주제 · 이야기 → AI 가사 · 스타일 → 수노에서 노래 만들기', 2: '노래(MP3) · 가사 · 화면 모양 · 장면 그림 1~N 넣기', 3: '① 채우기(BK쇼츠처럼 장면 맞추기) · ② 음악(자막) · ③ 잠금', 4: '장면 전환 · 색감 · 화면 효과 · 스티커 · 효과음 · 제목', 5: '화면 · 음악 · 자막 · 효과 줄로 다듬고 MP4 저장' };
+  const DESC = { 1: '장르 · 주제 · 이야기 → AI 가사 · 스타일 → 수노에서 노래 만들기', 2: '노래(MP3) · 가사 · 화면 모양 · 장면 그림 1~N 넣기', 3: '① 자막(가사 톡톡) · ② 화면(장면 길이 · 순서) · ③ 잠금(장면마다 확인하고 고정)', 4: '장면 전환 · 색감 · 화면 효과 · 스티커 · 효과음 · 제목', 5: '화면 · 음악 · 자막 · 효과 줄로 다듬고 MP4 저장' };
   function nextTodo() { for (const s of STAGES) if (!done(s.n)) return s.n; return STAGES.length; }
   function renderHub() {
     const p = S.p, nx = nextTodo(), nd = STAGES.filter(s => done(s.n)).length;
@@ -426,18 +426,25 @@
       </details>`;
   }
   function lockPart(p) {
-    const sc = p.scenes, empty = sc.map((s, i) => s.file ? 0 : i + 1).filter(Boolean), oks = sc.filter(s => s.ok).length, L = p.lines || [], nT = L.filter(l => l.s != null).length;
-    return `<button class="btn big" data-a="playAll">▶ 처음부터 끝까지 보기</button>
-      <div class="note ${empty.length ? 'red' : 'blue'}">장면 ${sc.length}개 중 채움 ${sc.length - empty.length}개 · 👍 ${oks}개 · 자막 ${nT}/${L.length}줄${empty.length ? `<br>⚠️ 빈 장면: ${empty.join(', ')}번 (2단계 ③ 장면에서 넣어 주세요)` : ''}</div>
-      ${p.locked ? `<div class="note blue">🔒 노래 · 장면이 잠겨 있어요. 실수로 바뀌지 않아요.</div><div class="row"><button class="btn sm ghost" data-a="unlock">🔓 잠금 풀기</button></div>`
-        : `<p class="muted">노래 · 장면 · 자막이 잘 맞으면 잠가 두세요. 잠그면 장면이 실수로 바뀌지 않아요.<br>(5단계 최종 편집에서는 일부러 고칠 수 있어요)</p>
-        <button class="btn main big next" data-a="lockNext">🔒 잠그고 다음 단계로 ▶</button>`}`;
+    const sc = p.scenes, nP = sc.filter(x => x.pin).length, nx = sc.findIndex(x => !x.pin), L = p.lines || [], nT = L.filter(l => l.s != null).length, empty = sc.filter(x => !x.file).length;
+    return `<div class="note ${nP === sc.length ? 'blue' : ''}">🔒 장면 ${sc.length}개 중 <b>${nP}개 고정</b>${nx >= 0 ? ` · 다음은 <b>${nx + 1}번</b>` : ' · 🎉 다 고정했어요'} · 자막 ${nT}/${L.length}줄${empty ? ` · ⚠️ 빈 장면 ${empty}개` : ''}</div>
+      <p class="muted" style="margin:4px 0">장면마다 <b>▶ 이 장면만</b>으로 그림 · 노래 · 자막이 잘 맞는지 보고, 잘 맞으면 <b>🔒 고정</b>. 고정한 장면은 ① 자막 · ② 화면에서 안 바뀌어요. 시간이 없으면 하던 데까지만 고정하고, 다음에 이어서 하면 돼요.</p>
+      <div class="row">${nx >= 0 ? `<button class="btn main" data-a="lkNext">▶ 다음 안 한 장면 (${nx + 1}번)</button>` : ''}<button class="btn" data-a="playAll">▶ 처음부터 끝까지</button></div>
+      <div class="lkList">${sc.map((x, i) => { const ly = MV.sceneLines(p, x); return `<div class="lk${x.pin ? ' on' : ''}" id="lk${i}">
+        <button type="button" class="th${p.ratio === '9:16' ? ' v916' : ''}" data-a="lkPlay" data-v="${i}">${x.thumb ? `<img src="${x.thumb}" alt="">` : (x.file ? '🎞' : '비어 있음')}<span class="k">${i + 1}</span></button>
+        <div class="bd"><div class="hd">장면 ${i + 1} <span class="muted">${fmt0(x.s)}~${fmt0(x.e)} · ${(x.e - x.s).toFixed(1)}초</span></div>
+          <div class="ly">🎤 ${ly.length ? esc(ly.join(' / ')) : '<span class="muted">(반주)</span>'}</div>
+          ${x.prompt ? `<div class="pr">✏️ ${esc(x.prompt)}</div>` : ''}
+          <div class="row"><button class="btn sm main" data-a="lkPlay" data-v="${i}">▶ 이 장면만</button><button class="btn sm ${x.pin ? 'pinOn' : 'pinBtn'}" data-a="lkPin" data-v="${i}">${x.pin ? '✅ 고정됨 (누르면 풀기)' : '🔒 고정'}</button></div></div></div>`; }).join('')}</div>
+      <div class="row" style="margin-top:10px"><button class="btn sm ghost" data-a="lkAll">🔒 전부 고정</button><button class="btn sm ghost" data-a="lkNone">🔓 전부 풀기</button></div>
+      ${nP === sc.length && sc.length ? '<button class="btn main big next" data-a="go" data-v="4">✨ 다음 단계: 효과 ▶</button>' : ''}`;
   }
   BODY[3] = function () {
     const p = S.p;
+    if (p.locked) { p.scenes.forEach(x => x.pin = true); p.locked = false; save(); }
     return `<div class="pvStick s3" data-pv></div>
-      <div data-sub="① 채우기">${MV.TL.fillPart()}</div>
-      <div data-sub="② 음악">${capPart(p)}</div>
+      <div data-sub="① 자막">${capPart(p)}</div>
+      <div data-sub="② 화면">${MV.TL.fillPart()}</div>
       <div data-sub="③ 잠금">${lockPart(p)}</div>`;
   };
   async function putScene(i, f) {
@@ -464,7 +471,9 @@
     save(); render();
     toast(photo ? '🧑 사진을 넣었어요 · 예전 주인공 설명은 지웠어요 (사진과 다를 수 있어서) · 맞으면 🔒 고정' : '🧑 주인공 그림을 넣었어요 · 맞으면 🔒 고정', 4500);
   }
-  function pinned(i) { const c = S.p && S.p.scenes[i]; if (c && c.pin) { toast(`🔒 장면 ${i + 1}은(는) 고정돼 있어요 · ③ ① 채우기에서 「🔓 고정 풀기」`, 3500); return true; } return false; }
+  function lnLocked(i) { const p = S.p, l = p.lines[i]; if (!l || l.s == null) return false; const x = p.scenes[MV.sceneAt(p, l.s)]; return !!(x && x.pin); }
+  function lnGuard(i) { if (lnLocked(i)) { toast('🔒 이 줄은 고정한 장면 안에 있어요 · ③ 잠금에서 그 장면을 풀고 고쳐 주세요', 3500); return true; } return false; }
+  function pinned(i) { const c = S.p && S.p.scenes[i]; if (c && c.pin) { toast(`🔒 장면 ${i + 1}은(는) 고정돼 있어요 · ③ 잠금이나 ② 화면에서 「고정 풀기」`, 3500); return true; } return false; }
   function delScene(i) {
     const p = S.p, sc = p.scenes[i]; if (!sc || !sc.file) return;
     if (!p.scenes.some((o, k) => k !== i && o.file === sc.file)) MV.delFile(sc.file);
@@ -823,6 +832,11 @@
       case 'scEdit': { const sc = p.scenes[+v], t = prompt(`장면 ${+v + 1} 글 (비우면 가사로 자동)`, sc.prompt || ''); if (t != null) { sc.prompt = t.trim(); save(); render(); } return; }
       /* 3 */
       case 'playAll': S.pv.scrollIntoView({ behavior: 'smooth', block: 'center' }); return S.player.play(0);
+      case 'lkPlay': { const x = p.scenes[+v]; if (!x) return; S.lkCur = +v; S.pv.scrollIntoView({ behavior: 'smooth', block: 'start' }); return S.player.play(x.s, x.e - .02); }
+      case 'lkPin': { const i = +v, x = p.scenes[i]; if (!x) return; x.pin = !x.pin; if (!x.pin) p.locked = false; save(); const y = scrollY; render(); scrollTo(0, y); return toast(x.pin ? `🔒 장면 ${i + 1} 고정 · 그림 · 시간 · 자막이 안 바뀌어요` : `🔓 장면 ${i + 1} 고정을 풀었어요`); }
+      case 'lkNext': { const i = p.scenes.findIndex(x => !x.pin); if (i < 0) return toast('🎉 다 고정했어요'); const c = $('lk' + i); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' }); const x = p.scenes[i]; return S.player.play(x.s, x.e - .02); }
+      case 'lkAll': if (!confirm('장면을 전부 고정할까요?')) return; p.scenes.forEach(x => x.pin = true); save(); render(); return toast('🔒 전부 고정했어요');
+      case 'lkNone': if (!confirm('고정을 전부 풀까요?')) return; p.scenes.forEach(x => x.pin = false); p.locked = false; save(); render(); return toast('🔓 전부 풀었어요');
       case 'lockNext': { const empty = p.scenes.filter(s => !s.file).length; if (empty && !confirm(`빈 장면이 ${empty}개 있어요. 그래도 잠글까요?`)) return; p.locked = Date.now(); save(); toast('🔒 잠갔어요'); return go(4); }
       case 'unlock': if (confirm('잠금을 풀까요? 장면을 다시 바꿀 수 있게 돼요.')) { p.locked = false; save(); render(); } return;
       /* 4 */
@@ -831,23 +845,23 @@
         let fresh = nT === 0;
         if (nT === L.length) { if (!confirm('처음부터 다시 맞출까요? 맞춘 시간이 지워져요.')) return; fresh = true; }
         else if (nT && !confirm('이어서 맞출까요?\n(「취소」를 누르면 처음부터 다시 맞출지 물어봐요)')) { if (!confirm('처음부터 다시 맞출까요? 맞춘 시간이 지워져요.')) return; fresh = true; }
-        if (fresh) { L.forEach(l => { l.s = null; l.e = null; }); S.tapK = 0; linesChanged(); render(); return S.player.play(0); }
+        if (fresh) { L.forEach((l, i) => { if (!lnLocked(i)) { l.s = null; l.e = null; } }); S.tapK = Math.max(0, L.findIndex(l => l.s == null)); linesChanged(); render(); const pv = L[S.tapK - 1]; return S.player.play(pv && pv.s != null ? Math.max(0, pv.s - .5) : 0); }
         S.tapK = L.findIndex(l => l.s == null); const prev = L[S.tapK - 1]; tapShow(0); return S.player.play(prev ? Math.max(0, prev.s - .5) : 0);
       }
       case 'tap': {
         const L = p.lines, k = S.tapK; if (!S.player.playing()) { if (S.win != null) { const sc = p.scenes[S.win]; return S.player.play(Math.max(0, sc.s - (S.win ? .2 : 0)), sc.e + .25); } return S.player.play(); }
         if (k >= L.length) return toast('✅ 다 맞췄어요');
-        const t = +Math.max(0, S.player.time() - .15).toFixed(2); L[k].s = t; L[k].e = null; if (L[k - 1] && L[k - 1].e != null && L[k - 1].e > t) L[k - 1].e = null;
+        const t = +Math.max(0, S.player.time() - .15).toFixed(2); { const x = p.scenes[MV.sceneAt(p, t)]; if (x && x.pin) return toast(`🔒 지금은 고정한 장면 ${MV.sceneAt(p, t) + 1}번 안이에요 · 고정 안 한 곳에서 톡`, 2500); } L[k].s = t; L[k].e = null; if (L[k - 1] && L[k - 1].e != null && L[k - 1].e > t) L[k - 1].e = null;
         S.tapK = k + 1; linesChanged(); winLy(); tapShow(S.player.time()); if (el) { el.style.filter = 'brightness(1.4)'; setTimeout(() => el.style.filter = '', 120); }
         if (S.tapK >= L.length) { toast('🎉 다 맞췄어요! ▶ 로 확인해 보세요', 3500); }
         return;
       }
-      case 'tapBack': { const L = p.lines; if (S.tapK <= 0) return S.player.play(0); S.tapK--; L[S.tapK].s = null; L[S.tapK].e = null; linesChanged(); winLy(); const prev = L[S.tapK - 1]; tapShow(0); return S.player.play(prev ? Math.max(0, prev.s - .3) : 0); }
+      case 'tapBack': { const L = p.lines; if (S.tapK <= 0) return S.player.play(0); if (lnGuard(S.tapK - 1)) return; S.tapK--; L[S.tapK].s = null; L[S.tapK].e = null; linesChanged(); winLy(); const prev = L[S.tapK - 1]; tapShow(0); return S.player.play(prev ? Math.max(0, prev.s - .3) : 0); }
       case 'tapEnd': { const l = p.lines[S.tapK - 1]; if (!l || l.s == null) return toast('먼저 줄을 톡 해 주세요'); l.e = +Math.max(l.s + .3, S.player.time()).toFixed(2); linesChanged(); return toast('✋ 자막을 껐어요 · 다음 줄이 들리면 톡'); }
-      case 'lnNudge': { const [i, d] = v.split(':'), l = p.lines[+i]; l.s = +Math.max(0, (l.s == null ? S.player.time() : l.s) + +d).toFixed(2); linesChanged(); const r = el.closest('.ln'); if (r) r.querySelector('.t').textContent = fmt(l.s), r.querySelector('.t').classList.remove('no'); return S.player.seek(Math.max(0, l.s)); }
-      case 'lnNow': { const l = p.lines[+v]; l.s = +S.player.time().toFixed(2); linesChanged(); if (p.step === 5) return editRefresh(); return render(); }
+      case 'lnNudge': { const [i, d] = v.split(':'), l = p.lines[+i]; if (lnGuard(+i)) return; l.s = +Math.max(0, (l.s == null ? S.player.time() : l.s) + +d).toFixed(2); linesChanged(); const r = el.closest('.ln'); if (r) r.querySelector('.t').textContent = fmt(l.s), r.querySelector('.t').classList.remove('no'); return S.player.seek(Math.max(0, l.s)); }
+      case 'lnNow': { if (lnGuard(+v)) return; const l = p.lines[+v]; l.s = +S.player.time().toFixed(2); linesChanged(); if (p.step === 5) return editRefresh(); return render(); }
       case 'lnPlay': { const l = p.lines[+v]; if (l.s == null) return toast('아직 시간이 없어요'); return S.player.play(Math.max(0, l.s - .8)); }
-      case 'lnText': { const l = p.lines[+v], t = prompt('자막 글 고치기', l.t); if (t != null && t.trim()) { l.t = t.trim(); linesChanged(); if (p.step === 5) editRefresh(); else render(); } return; }
+      case 'lnText': { if (lnGuard(+v)) return; const l = p.lines[+v], t = prompt('자막 글 고치기', l.t); if (t != null && t.trim()) { l.t = t.trim(); linesChanged(); if (p.step === 5) editRefresh(); else render(); } return; }
       case 'capStyle': p.cap.style = v; linesChanged(); return render();
       case 'capPos': p.cap.pos = v; linesChanged(); return render();
       case 'capSize': p.cap.size = +v; linesChanged(); return render();
@@ -864,7 +878,7 @@
       case 'lyS': { const [i, d] = v.split(':'), l = p.lines[+i]; l.s = +Math.max(0, l.s + +d).toFixed(2); editRefresh(); return S.player.seek(l.s); }
       case 'lyE': { const [i, d] = v.split(':'), l = p.lines[+i], c = MV.capLines(p).find(q => q.i === +i); l.e = +Math.max(l.s + .3, (l.e != null ? l.e : c ? c.e : l.s + 3) + +d).toFixed(2); editRefresh(); return S.player.seek(Math.max(l.s, l.e - 1)); }
       case 'lyEauto': p.lines[+v].e = null; return editRefresh();
-      case 'lyOff': if (confirm('이 줄을 자막에서 뺄까요? (3단계 ③ 음악에서 다시 맞출 수 있어요)')) { p.lines[+v].s = null; p.lines[+v].e = null; S.sel = null; editRefresh(); } return;
+      case 'lyOff': if (lnGuard(+v)) return; if (confirm('이 줄을 자막에서 뺄까요? (3단계 ① 자막에서 다시 맞출 수 있어요)')) { p.lines[+v].s = null; p.lines[+v].e = null; S.sel = null; editRefresh(); } return;
       case 'vol': p.fx.vol = +v; S.player.audio.volume = Math.min(1, p.fx.vol); return editRefresh();
       case 'fadeOut': p.fx.fadeOut = +v; return fxRefresh();
       case 'fadeIn': p.fx.fadeIn = +v; return fxRefresh();

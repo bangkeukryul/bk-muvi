@@ -319,3 +319,11 @@ header.top button{border:0;border-radius:10px;padding:6px 10px;background:#fffff
 .tb.over{opacity:.55;filter:grayscale(.4)}
 .ovNote{background:#fef2f2;border:1.5px solid #fecaca;color:#b91c1c;border-radius:10px;padding:5px 8px;font-size:.78rem;margin:4px 0}
 .clipNote{font-size:.75rem;margin:2px 0}.lnk{border:0;background:none;color:var(--p);text-decoration:underline;font-weight:800;padding:0}
+.lkList{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.lk{display:flex;gap:8px;border:2px solid var(--line);border-radius:14px;padding:8px;background:#fff}
+.lk.on{border-color:#34d399;background:#ecfdf5}
+.lk .th{flex:none;width:74px;height:74px;border:0;border-radius:10px;background:#1e1b4b;color:#cbd5e1;font-size:.7rem;position:relative;overflow:hidden;padding:0}
+.lk .th.v916{height:110px}.lk .th img{width:100%;height:100%;object-fit:cover}.lk .th .k{position:absolute;left:4px;top:4px;background:#000a;color:#fff;border-radius:6px;padding:0 5px;font-weight:900;font-size:.75rem}
+.lk .bd{flex:1;min-width:0}.lk .hd{font-weight:900;font-size:.9rem}.lk .hd .muted{font-weight:500;font-size:.75rem}
+.lk .ly{font-size:.8rem;color:#6d28d9;margin:2px 0;word-break:keep-all}.lk .pr{font-size:.75rem;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lk .row{margin-top:4px;gap:6px}

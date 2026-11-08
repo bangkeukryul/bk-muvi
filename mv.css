@@ -305,3 +305,6 @@ header.top button{border:0;border-radius:10px;padding:6px 10px;background:#fffff
 .cutRow button.mv{background:#fff7ed;color:#c2410c}
 .btn.pinBtn{background:#ecfdf5;color:#047857;border:1.5px solid #6ee7b7}.btn.pinOn{background:#047857;color:#fff}
 .cpd.pin{background:#d1fae5;color:#047857}
+.cutRow button.del{background:#fef2f2;color:#dc2626}
+.row.three{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.row.three .btn{width:100%;padding-left:2px;padding-right:2px}
+.btn.hotSm{background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff}.btn.keepSm{border:2px solid var(--p);color:var(--p)}

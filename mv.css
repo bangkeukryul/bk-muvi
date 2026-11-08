@@ -301,3 +301,4 @@ header.top button{border:0;border-radius:10px;padding:6px 10px;background:#fffff
 .numGrid button.on{background:var(--p);color:#fff;border-color:var(--p)}
 
 .gemSong{background:#fdf4ff;border:2px solid #f0abfc;border-radius:14px;padding:10px 12px;margin:10px 0}.gemSong b{color:#a21caf}.gemSong .btn{width:100%}
+.btn.red{color:#dc2626;border-color:#fecaca}

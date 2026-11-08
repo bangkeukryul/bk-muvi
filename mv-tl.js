@@ -13,6 +13,9 @@
   /* ═════════ ↩ 되돌리기 ═════════ */
   const KEYS = ['scenes', 'lines', 'efx', 'stk', 'sfx', 'thumb', 'endc', 'song', 'fx'];
   function snapOf(p) { const o = {}; KEYS.forEach(k => { o[k] = JSON.stringify(p[k] === undefined ? null : p[k]); }); return o; }
+  function rmScene(p, i) { const c = p.scenes[i]; if (i > 0) p.scenes[i - 1].e = c.e; else p.scenes[1].s = 0; p.scenes.splice(i, 1);
+    p.scenes.forEach(o => { if (o.reuse == null) return; if (o.reuse === i) o.reuse = null; else if (o.reuse > i) o.reuse--; });
+    if (p.cpNext > i) p.cpNext--; if (c.file && !p.scenes.some(o => o.file === c.file)) MV.delFile(c.file); }
   function snap() { T.undo.push(snapOf(P())); if (T.undo.length > 40) T.undo.shift(); T.redo = []; }
   function restore(o) { const p = P(); KEYS.forEach(k => { p[k] = JSON.parse(o[k]); }); }
   function undo() { if (!T.undo.length) return U().toast('되돌릴 것이 없어요'); T.redo.push(snapOf(P())); restore(T.undo.pop()); changed(); U().toast('↩ 되돌렸어요'); }
@@ -88,7 +91,8 @@
         <div class="hd"><b>장면 ${i + 1}</b> <span class="muted">${fmt(c.s)} ~ ${fmt(c.e)} · ${(c.e - c.s).toFixed(1)}초</span>${c.kind === 'video' && (c.e - c.s) > 8.3 ? ' <span class="cpd">⚠️ 8초 넘음 → 영상이 다시 반복돼요</span>' : ''}</div>
         <div class="ly">🎤 ${lyr.length ? esc(lyr.join(' / ')) : '<span class="muted">(반주)</span>'}</div>
         <div class="row"><button class="btn sm main" data-a="fPlay">▶ 이 장면만</button><button class="btn sm main" data-a="fNext">다음 장면 ▶</button><button class="btn sm" data-a="fLyTap">👆 가사 톡</button></div>
-        <div class="row"><button class="btn sm" data-a="scPut" data-v="${i}"${dis}>📂 ${c.file ? '바꾸기' : '넣기'}</button>${c.file ? `<button class="btn sm ghost" data-a="scDel" data-v="${i}"${dis}>🗑 빼기</button>` : ''}<button class="btn sm ghost" data-a="scCopy" data-v="${i}">📋 글 복사</button></div>
+        <div class="row"><button class="btn sm" data-a="scPut" data-v="${i}"${dis}>📂 ${c.file ? '바꾸기' : '넣기'}</button>${c.file ? `<button class="btn sm ghost" data-a="scDel" data-v="${i}"${dis}>🗑 빼기</button>` : ''}<button class="btn sm ghost red" data-a="fScDel" data-v="${i}"${dis}>❌ 삭제</button><button class="btn sm ghost" data-a="scCopy" data-v="${i}">🔄 장면 다시 요청</button></div>
+        <p class="muted" style="margin:2px 0 0;font-size:.78rem">🗑 빼기 = 그림만 빼고 칸은 남겨요 · ❌ 삭제 = 이 장면 칸을 없애요 (앞 장면이 시간을 이어받아요) · 🔄 다시 요청 = 그림이 마음에 안 들 때 ChatGPT에 다시 그려 달라는 글 복사</p>
         <div class="muted tapNow" style="margin-top:4px"></div>
       </div>
       <div class="row" style="margin-top:8px"><button class="btn sm" data-a="fSnap"${dis}>🧲 가사 줄에 맞춰 장면 넘기기</button><button class="btn sm" data-a="thSheet">🖼 썸네일</button><button class="btn sm" data-a="enSheet">🏁 엔딩</button></div>
@@ -277,12 +281,13 @@
       case 'fKeep2': T.keep = v; return reSheet();
       case 'edDel': { const se = T.esel || { k: 'sc', i: sceneIdx(t) };
         if (se.k === 'sc') { const i = se.i, c = p.scenes[i]; if (p.scenes.length < 2) return U().toast('장면이 하나뿐이에요'); if (!confirm(`장면 ${i + 1}을(를) 지울까요? (앞 장면이 그 시간을 이어받아요)`)) return; snap();
-          if (i > 0) p.scenes[i - 1].e = c.e; else p.scenes[1].s = 0; p.scenes.splice(i, 1); if (c.file && !p.scenes.some(o => o.file === c.file)) MV.delFile(c.file); T.esel = null; changed(); return U().toast('🗑 지웠어요 · ↩ 로 되살려요'); }
+          rmScene(p, i); T.esel = null; changed(); return U().toast('🗑 지웠어요 · ↩ 로 되살려요'); }
         if (se.k === 'ly') { snap(); p.lines[se.i].s = null; p.lines[se.i].e = null; T.esel = null; return changed(); }
         if (se.k === 'efx' || se.k === 'stk' || se.k === 'sfx') { snap(); p[se.k].splice(se.i, 1); T.esel = null; return changed(); }
         if (se.k === 'th') { snap(); p.thumb.on = false; T.esel = null; return changed(); } if (se.k === 'en') { snap(); p.endc.on = false; T.esel = null; return changed(); }
         return U().toast('지울 것을 아래 줄에서 골라 주세요'); }
       case 'edCap': return openSheet('💬 자막', capSheet);
+      case 'fScDel': { if (p.locked) return U().toast('🔒 잠겨 있어요'); const i = +v; if (p.scenes.length < 2) return U().toast('장면이 하나뿐이에요'); if (!confirm(`장면 ${i + 1} 칸을 없앨까요? (${i ? '앞' : '뒤'} 장면이 그 시간을 이어받아요 · ↩ 되돌리기로 되살릴 수 있어요)`)) return; snap(); rmScene(p, i); T.fsel = Math.max(0, i - 1); changed(); const c = p.scenes[T.fsel]; if (c) s.player.seek(c.s + .05); return U().toast(`❌ 장면 ${i + 1}을(를) 지웠어요 · ↩ 로 되살려요`); }
       case 'capPick': T.esel = { k: 'ly', i: +v }; if (p.lines[+v].s != null) s.player.seek(p.lines[+v].s); return reSheet();
       case 'capJoin': { const i = +v, l = p.lines[i], n = p.lines[i + 1]; snap(); l.t = (l.t + ' ' + n.t).trim(); l.e = n.e; p.lines.splice(i + 1, 1); return changed(); }
       case 'capSplit': { const i = +v, l = p.lines[i], tx = prompt('어디서 나눌까요? 나눌 자리에 | 를 넣어 주세요', l.t); if (!tx || tx.indexOf('|') < 0) return; const [x1, x2] = tx.split('|'); snap(); const c = MV.capLines(p).find(q => q.i === i); const mid = l.s != null && c ? +((l.s + c.e) / 2).toFixed(2) : null;
@@ -351,6 +356,6 @@
   g.addEventListener('resize', () => afterRender());
   const NAMES = new Set(['tlUndo', 'tlRedo', 'tlZoom', 'fNud', 'fKeep', 'fCut', 'fPrev', 'fBlank', 'fBlankGo', 'fTapGo', 'fTap', 'fTapUndo', 'fTapStop', 'fPlay', 'fNext', 'fLyTap', 'fSnap',
     'thSheet', 'enSheet', 'thOn', 'thDur', 'thSrc', 'thFile', 'thPos', 'thCol', 'thFont', 'thSave', 'enOn', 'enDur', 'enLogo',
-    'edAdd', 'adPut', 'adSplit', 'adLib', 'edSplit', 'edTrim', 'trB', 'trCur', 'trOff', 'fKeep2', 'edDel', 'edCap', 'capPick', 'capJoin', 'capSplit', 'edAudio', 'auFi', 'auCut', 'auCutA', 'auCutB', 'edFx', 'edEfx', 'edStk', 'edSfx', 'edMore', 'mSpeed', 'mFit', 'mZoom', 'mPos', 'mFi', 'mFo', 'mFreeze', 'mFlip', 'mMove', 'mDup']);
+    'edAdd', 'adPut', 'adSplit', 'adLib', 'edSplit', 'edTrim', 'trB', 'trCur', 'trOff', 'fKeep2', 'edDel', 'fScDel', 'edCap', 'capPick', 'capJoin', 'capSplit', 'edAudio', 'auFi', 'auCut', 'auCutA', 'auCutB', 'edFx', 'edEfx', 'edStk', 'edSfx', 'edMore', 'mSpeed', 'mFit', 'mZoom', 'mPos', 'mFi', 'mFo', 'mFreeze', 'mFlip', 'mMove', 'mDup']);
   MV.TL = { has: a => NAMES.has(a), reSheet, fillPart, editPart, act, change, onTime, afterRender, refreshView, reset() { T.undo = []; T.redo = []; T.fsel = null; T.esel = null; T.tapMode = false; T.cutA = null; } };
 })(window);

@@ -569,7 +569,7 @@
       case 'go': return go(v);
       case 'open': if (el && el.dataset.next && p.step === 6) { p.fxSeen = 1; save(); } return go(v);
       case 'hub': return toHub();
-      case 'sheetX': return sheetClose();
+      case 'sheetX': sheetClose(); if (S.view === 'stage' && p.step === 1) render(); return;
       case 'sub': S.subs[p.step] = +v; renderStage(); { const b = document.querySelector('.subbar'); if (b) b.scrollIntoView({ behavior: 'smooth', block: 'start' }); } return;
       case 'pp': return S.player.toggle();
       /* 1 */

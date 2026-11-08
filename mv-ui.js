@@ -58,6 +58,14 @@
       <p class="muted" style="margin:4px 0">✅ 라이선스 · 카드함 · 만든 뮤비는 크롬 안에 있어서 앱을 지워도 그대로예요. ⚠️ 크롬 「쿠키 및 사이트 데이터 삭제」는 하지 마세요.</p></details>`;
   }
 
+  /* ═════════ 고르기 창: 누르면 아래에서 올라와요 (기존 BK 앱처럼) ═════════ */
+  function sheet(title, html) {
+    let o = $('sheet'); if (!o) { o = document.createElement('div'); o.id = 'sheet'; o.className = 'sheetBg'; o.addEventListener('click', e => { if (e.target === o) sheetClose(); }); document.body.appendChild(o); }
+    o.innerHTML = `<div class="sheetBox"><div class="sheetHd"><b>${title}</b><button type="button" class="btn sm ghost" data-a="sheetX">✕ 닫기</button></div><div class="sheetBd">${html}</div></div>`;
+    o.classList.remove('hide'); document.body.style.overflow = 'hidden';
+  }
+  function sheetClose() { const o = $('sheet'); if (o) { o.classList.add('hide'); o.innerHTML = ''; } document.body.style.overflow = ''; }
+
   /* ═════════ 관리자 확인 ═════════ */
   function isAdmin() { try { return localStorage.getItem('bkAdmin') === '1'; } catch (e) { return false; } }
 
@@ -75,8 +83,8 @@
     root.innerHTML = `
       <div class="note blue" style="margin-top:14px">🎬 <b>노래 한 곡 → 뮤직비디오 한 편</b><br>① 🎼 노래 만들기 → ② 🎵 노래 넣기 → ③ 🎬 장면(Flow) → ④ 🔒 잠금 → ⑤ 🎤 자막 → ⑥ ✨ 효과 → ⑦ ✂️ 최종 편집 순서로 차례차례 만들어요.</div>
       <div id="instBox"></div>
-      <button class="btn main big" data-a="newP">＋ 새 뮤비 만들기</button>
-      ${cont ? `<button class="btn pink big contBtn" data-a="openP" data-v="${cont.id}">▶ 이어 만들기<small>「${esc(cont.title || '제목 없음')}」 · ${stName(cont)} 단계부터</small></button>` : ''}
+      <button class="btn main big homeBig" data-a="newP">＋ 새 뮤비 만들기<small>노래 만들기부터 새로 시작해요</small></button>
+      ${cont ? `<button class="btn pink big homeBig" data-a="openP" data-v="${cont.id}">▶ 이어 만들기<small>「${esc(cont.title || '제목 없음')}」 · ${stName(cont)} 단계부터</small></button>` : ''}
       ${list.length ? `<h3 style="margin:18px 0 0">📂 내 뮤비 <span class="muted">${list.length}개</span></h3>` : ''}
       <div class="plist">${list.length ? shown.map(p => `
         <div class="pitem"><div style="font-size:1.6rem">${p.exported ? '✅' : p.locked ? '🔒' : '🎬'}</div>
@@ -561,6 +569,7 @@
       case 'go': return go(v);
       case 'open': if (el && el.dataset.next && p.step === 6) { p.fxSeen = 1; save(); } return go(v);
       case 'hub': return toHub();
+      case 'sheetX': return sheetClose();
       case 'sub': S.subs[p.step] = +v; renderStage(); { const b = document.querySelector('.subbar'); if (b) b.scrollIntoView({ behavior: 'smooth', block: 'start' }); } return;
       case 'pp': return S.player.toggle();
       /* 1 */
@@ -675,7 +684,7 @@
   document.addEventListener('play', e => { if (e.target.id === 'songAu' && S.player) S.player.pause(); }, true);
   document.addEventListener('toggle', e => { if (e.target.tagName === 'DETAILS' && e.target.open) tapShow(S.player ? S.player.time() : 0); }, true);
 
-  MV.UI = { S, toast, save, render, go, copyOpen, chip, applyLyrics, get p() { return S.p; } };
+  MV.UI = { S, toast, save, render, go, copyOpen, chip, applyLyrics, sheet, sheetClose, get p() { return S.p; } };
   g.addEventListener('DOMContentLoaded', () => {
     $('homeBtn').addEventListener('click', () => home());
     home();

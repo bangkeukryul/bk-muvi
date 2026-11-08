@@ -155,8 +155,19 @@ header.top button{border:0;border-radius:10px;padding:6px 10px;background:#fffff
 .emo{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
 .emo button{font-size:1.4rem;border:1px solid var(--line);background:#fff;border-radius:10px;padding:4px 0}
 /* 내 뮤비: 이어 만들기 · 쪽 번호 */
-.contBtn{flex-direction:column;margin-top:10px}
-.contBtn small{display:block;font-weight:700;font-size:.82rem;opacity:.95;margin-top:2px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.homeBig{flex-direction:column;min-height:78px;margin-top:10px;width:100%}
+.homeBig small{display:block;font-weight:700;font-size:.82rem;opacity:.95;margin-top:2px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pager{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:14px 0}
 .pager button{min-width:40px;height:40px;border:1.5px solid var(--line);background:#fff;border-radius:10px;font-weight:800;color:var(--ink)}
 .pager button.on{background:var(--p);border-color:var(--p);color:#fff}
+/* 고르기 창 */
+.pickRow{display:flex;align-items:center;gap:8px;width:100%;border:1.5px solid var(--line);background:#fff;border-radius:14px;padding:12px;margin:6px 0;text-align:left;font-weight:800;color:var(--ink)}
+.pickRow .k{min-width:64px;color:var(--sub);font-size:.85rem}
+.pickRow b{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--p)}
+.pickRow::after{content:"▾";color:var(--sub)}
+.sheetBg{position:fixed;inset:0;background:#0007;z-index:60;display:flex;align-items:flex-end;justify-content:center}
+.sheetBox{background:#fff;width:100%;max-width:720px;max-height:78vh;border-radius:20px 20px 0 0;display:flex;flex-direction:column;animation:sheetUp .2s ease-out}
+.sheetHd{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)}
+.sheetBd{overflow:auto;padding:12px 14px 20px}
+.sheetBd .chips .chip{padding:9px 13px;font-size:.92rem}
+@keyframes sheetUp{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}

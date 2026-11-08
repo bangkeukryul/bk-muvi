@@ -101,9 +101,9 @@
   /* ── 장면 칸 나누기: 곡 길이 ÷ 한 장면 길이 ── */
   MV.planScenes = function (p) {
     const dur = (p.song && p.song.dur) || 0, L = p.mode === 'image' ? 8 : (p.clipLen || 8); if (!dur) return [];
-    const st = p.thumb && p.thumb.on ? (p.thumb.dur || 0) : 0, n = p.mode === 'image' && p.picN ? p.picN : Math.max(1, Math.ceil((dur - st) / L - 0.25)), step = (dur - st) / n, old = p.scenes || [], out = [];
-    for (let i = 0; i < n; i++) { const o = old[i] || {}; out.push({ id: o.id || ('s' + i + '_' + Date.now().toString(36)), s: i ? +(st + i * step).toFixed(2) : 0, e: +(st + (i + 1) * step).toFixed(2), file: o.file || null, kind: o.kind || null, name: o.name || '', prompt: o.prompt || '', ok: !!o.ok, off: o.off || 0, fx: o.fx || '', tr: o.tr || '' }); }
-    for (let i = n; i < old.length; i++) if (old[i].file) MV.delFile(old[i].file);
+    const st = p.thumb && p.thumb.on ? (p.thumb.dur || 0) : 0, n = p.mode === 'image' ? (p.picN || Math.max(1, Math.min(20, Math.round((dur - st) / 8)))) : Math.max(1, Math.ceil((dur - st) / L - 0.25)), step = (dur - st) / n, old = p.scenes || [], out = [];
+    for (let i = 0; i < n; i++) { const o = old[i] || {}; out.push({ id: o.id || ('s' + i + '_' + Date.now().toString(36)), s: i ? +(st + i * step).toFixed(2) : 0, e: +(st + (i + 1) * step).toFixed(2), file: o.file || null, kind: o.kind || null, name: o.name || '', prompt: o.prompt || '', ok: !!o.ok, off: o.off || 0, fx: o.fx || '', tr: o.tr || '', thumb: o.thumb || '', cp: o.cp || 0, reuse: o.reuse != null && o.reuse < n ? o.reuse : null, auto: !!o.auto }); }
+    for (let i = n; i < old.length; i++) if (old[i].file && !out.some(o => o.file === old[i].file) && !old.slice(0, n).some(o => o.file === old[i].file)) MV.delFile(old[i].file);
     return out;
   };
 

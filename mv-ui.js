@@ -307,20 +307,24 @@
       `그림 느낌: ${lk.style || '실사 시네마틱'} · 화면: ${ratioKo(p)}${lk.mood ? `\n전체 분위기: ${lk.mood}` : ''}${lk.hero ? `\n주인공: ${lk.hero}` : ''}\n\n` +
       `아래에 장면마다 그 시간에 나오는 가사를 적었어요. 노래 전체가 하나의 이야기처럼 이어지게, 장면마다 ${vid ? 'Flow에 넣을 영상' : 'ChatGPT에 넣을 그림'} 설명을 한국어 한두 문장으로 써 주세요.\n` +
       (KR(p) ? '- 모든 장면은 한국 사람 · 한국 배경으로 (한국 거리 · 집 · 자연, 간판은 한글)\n' : '') +
-      `- 가사의 감정과 맞게 (밝은 부분은 밝게, 슬픈 부분은 차분하게)\n- 같은 주인공 · 같은 옷 · 같은 장소 느낌이 이어지게\n- 주인공이 안 나오는 장면(풍경 · 물건 · 손 · 뒷모습 · 거리)도 3~4장면에 1번꼴로 섞어 주세요\n${vid ? '- 카메라 움직임도 넣기 (천천히 다가가기, 옆으로 흐르기 등)\n' : ''}- 화면에 글자 · 자막 · 로고는 넣지 않기\n` +
+      `- 노래 구조(전주 · 1절 · 후렴 · 2절 · 브리지 · 후주)와 가사 흐름에 맞춰 장면을 나눠 주세요\n- 가사의 감정과 맞게 (밝은 부분은 밝게, 슬픈 부분은 차분하게)\n- 같은 주인공 · 같은 옷 · 같은 장소 느낌이 이어지게\n- 주인공이 안 나오는 장면(풍경 · 물건 · 손 · 뒷모습 · 거리)도 3~4장면에 1번꼴로 섞어 주세요\n` + (vid ? '' : `- 후렴이 반복되는 곳은 앞의 후렴 그림을 다시 써도 돼요. 그럴 땐 설명 대신 「장면 6 다시 쓰기」처럼 한 줄만 써 주세요 (새로 그릴 그림 수를 줄여요)\n`) + `${vid ? '- 카메라 움직임도 넣기 (천천히 다가가기, 옆으로 흐르기 등)\n' : ''}- 화면에 글자 · 자막 · 로고는 넣지 않기\n` +
       `- 인사말 없이, 장면마다 아래 모양으로만 써 주세요 (장면 하나씩 복사하기 좋게):\n### 장면 1\n(설명)\n### 장면 2\n(설명)\n\n` +
       p.scenes.map((sc, i) => { const ly = MV.sceneLines(p, sc); return `장면 ${i + 1} (${fmt0(sc.s)}~${fmt0(sc.e)}) 가사: ${ly.length ? ly.join(' / ') : (i === 0 ? '(전주)' : '(반주만)')}`; }).join('\n');
   }
   function parsePlan(t) {
     let n = 0, want = -1; const S2 = S.p.scenes;
     String(t || '').replace(/\r/g, '').split('\n').forEach(l => {
-      const x = l.replace(/\*\*|__/g, '').trim(); if (!x) return;
+      const x = l.replace(/\*\*|__|`/g, '').trim(); if (!x) return;
+      const rr = x.match(/^[-#•\s]*(?:S|장면|scene|씬)\s*(\d{1,3})\b.*?(?:=|→|:)\s*(?:S|장면)\s*(\d{1,3})\s*(?:번)?\s*(?:그림)?\s*(?:다시|재사용|반복|같은)/i);
+      if (rr && S2[+rr[1] - 1] && S2[+rr[2] - 1] && +rr[1] !== +rr[2]) { const sc = S2[+rr[1] - 1]; sc.reuse = +rr[2] - 1; sc.prompt = `♻ 장면 ${rr[2]} 그림 다시 쓰기`; n++; want = -1; return; }
       const m = x.match(/^[-#•]*\s*(?:S|장면|scene|씬)\s*(\d{1,3})\s*(?:\([^)]*\))?\s*(?:[.:)\]：\-—]\s*(.*))?$/i) || x.match(/^(\d{1,3})\s*[.)]\s*(.+)$/);
-      if (m && S2[+m[1] - 1]) { const r = (m[2] || '').replace(/^가사\s*[:：].*$/, '').trim(); if (r.length > 3) { S2[+m[1] - 1].prompt = r; n++; want = -1; } else want = +m[1] - 1; return; }
-      if (want >= 0 && x.length > 3 && !/^가사\s*[:：]/.test(x)) { S2[want].prompt = x.replace(/^(설명|장면)\s*[:：]\s*/, ''); n++; want = -1; }
+      if (m && S2[+m[1] - 1]) { const r = (m[2] || '').replace(/^가사\s*[:：].*$/, '').trim(); if (r.length > 3) { S2[+m[1] - 1].prompt = r; S2[+m[1] - 1].reuse = null; n++; want = -1; } else want = +m[1] - 1; return; }
+      if (want >= 0 && x.length > 3 && !/^가사\s*[:：]/.test(x)) { const rm = x.match(/(?:장면|S)\s*(\d{1,3})\s*(?:번)?\s*(?:그림)?\s*(?:을|를)?\s*(?:다시|재사용|반복|그대로)/); if (rm && S2[+rm[1] - 1] && +rm[1] - 1 !== want) { S2[want].reuse = +rm[1] - 1; S2[want].prompt = `♻ 장면 ${rm[1]} 그림 다시 쓰기`; } else { S2[want].prompt = x.replace(/^(설명|장면)\s*[:：]\s*/, ''); S2[want].reuse = null; } n++; want = -1; }
     });
+    applyReuse();
     return n;
   }
+
   /* ═════════ 3. 🎬 노래 · 장면 맞추기 = ① 채우기(한 번에) · ② 장면 · ③ 음악(자막) · ④ 잠금 ═════════ */
   function heroBox(p) {
     const lk = p.look || {}, vid = p.mode !== 'image';
@@ -342,7 +346,7 @@
       <details class="grp" open><summary>🛠 ② 만드는 방법 · 분위기</summary>
         <div class="chips">${chip('mode', 'image', !vid, '🖼 그림 · 사진 (기본 · ChatGPT)')}${chip('mode', 'video', vid, '🎬 영상 (Flow)')}</div>
         ${vid ? `<div class="field"><label>⏱ 영상 길이</label><div class="chips">${[8, 16, 24, 30].map(v => chip('clipLen', v, p.clipLen === v, v + '초')).join('')}</div></div>`
-          : `<div class="field"><label>🖼 그림 장 수</label><div class="row cnt"><button class="btn sm" data-a="picN" data-v="-1"${dis}>－</button><b>${sc.length}장</b><button class="btn sm" data-a="picN" data-v="1"${dis}>＋</button><span class="muted">한 장 약 ${(p.song.dur / Math.max(1, sc.length)).toFixed(1)}초</span></div></div>`}
+          : `<div class="field"><label>🖼 그림 장 수</label><div class="row cnt"><button class="btn sm" data-a="picN" data-v="-1"${dis}>－</button><b>${sc.length}장</b><button class="btn sm" data-a="picN" data-v="1"${dis}>＋</button><span class="muted">한 장 약 ${(p.song.dur / Math.max(1, sc.length)).toFixed(1)}초 · 기본 최대 20장${sc.some(x => x.reuse != null) ? ` · ♻ ${sc.filter(x => x.reuse != null).length}칸 다시 쓰기 → 새로 그릴 그림 ${sc.length - sc.filter(x => x.reuse != null).length}장` : ''}</span></div></div>`}
         <div class="field"><label>🎨 그림 느낌</label><div class="chips">${STYLES.map(s2 => chip('style', s2, lk.style === s2, s2)).join('')}</div></div>
         <div class="field"><label>💭 노래 분위기</label><input type="text" id="fMood" value="${esc(lk.mood)}" placeholder="예: 봄 햇살, 그리움, 따뜻한 재회"></div>
         <div class="field"><label>🧑 주인공 설명 (같은 사람이 계속 나오게)</label><input type="text" id="fHero" value="${esc(lk.hero)}" placeholder="예: 20대 여성, 긴 생머리, 하얀 원피스"></div>
@@ -364,14 +368,15 @@
       </details>
       <details class="grp" open><summary>🎞 ⑤ ${vid ? '영상' : '그림'} 1~${sc.length} 넣기 · 채움 ${filled}/${sc.length}</summary>
         <div class="row"><button class="btn main" data-a="bulk"${dis}>📥 한꺼번에 고르기 → 1번부터 차례로</button><button class="btn" data-a="libOpen"${dis}>🗂 내 보관함에서</button></div>
-        <p class="muted">칸마다 그 시간에 나올 가사가 같이 보여요 (자막 시간을 맞추기 전에는 대략). 하나씩 넣으려면 칸의 📂 를 누르세요.</p>
+        ${trayList().length ? `<div class="tray"><b>🗂 서랍</b>${trayList().map(o => `<button type="button" data-a="trayPick" data-v="${esc(o.file)}">${o.thumb ? `<img src="${o.thumb}" alt="">` : '🎞'}<i>${o.uses.length}번</i></button>`).join('')}</div>` : ''}
+        <p class="muted">칸마다 그 시간에 나올 가사가 같이 보여요 (자막 시간을 맞추기 전에는 대략). ♻ 칸은 앞 장면 그림이 저절로 들어가요 (📥 한꺼번에 넣을 때 건너뛰어요).</p>
         <div class="grid">${sc.map((s2, i) => { const ly = MV.sceneLines(p, s2); return `
           <div class="sc${s2.ok ? ' ok' : ''}">
             <button class="th${p.ratio === '9:16' ? ' v916' : ''}" data-a="scPlay" data-v="${i}">${s2.thumb ? `<img src="${s2.thumb}" alt="">` : (s2.file ? '🎞' : '비어 있음')}<span class="k">${i + 1}</span></button>
-            <div class="bd"><div class="hd">장면 ${i + 1} · ${fmt0(s2.s)}~${fmt0(s2.e)}${s2.cp ? ' <span class="cpd">📋</span>' : ''}${s2.file ? ' <span class="cpd ok">✅</span>' : ''}</div>
+            <div class="bd"><div class="hd">장면 ${i + 1} · ${fmt0(s2.s)}~${fmt0(s2.e)}${s2.reuse != null ? ` <span class="cpd re">♻ ${s2.reuse + 1}번 그림</span>` : ''}${s2.cp ? ' <span class="cpd">📋</span>' : ''}${s2.file ? ' <span class="cpd ok">✅</span>' : ''}</div>
               <div class="ly">🎤 ${ly.length ? esc(ly.join(' / ')) : '<span class="muted">(반주)</span>'}</div>
               <div class="pr">✏️ ${s2.prompt ? esc(s2.prompt) : '장면 글 없음 → 가사로 자동'}</div>
-              <div class="row"><button class="btn sm main" data-a="scCopy" data-v="${i}">📋 글</button><button class="btn sm" data-a="scPut" data-v="${i}"${dis}>📂 ${s2.file ? '바꾸기' : '넣기'}</button>${s2.file ? `<button class="btn sm ghost" data-a="scDel" data-v="${i}"${dis}>🗑</button>` : ''}<button class="btn sm" data-a="scPlay" data-v="${i}">▶</button><button class="btn sm ghost" data-a="scEdit" data-v="${i}">✏️</button></div>
+              <div class="row"><button class="btn sm main" data-a="scCopy" data-v="${i}">📋 글</button><button class="btn sm" data-a="scPut" data-v="${i}"${dis}>📂 ${s2.file ? '바꾸기' : '넣기'}</button><button class="btn sm" data-a="trayFor" data-v="${i}"${dis}>🗂 서랍</button>${s2.file ? `<button class="btn sm ghost" data-a="scDel" data-v="${i}"${dis}>🗑</button>` : ''}<button class="btn sm" data-a="scPlay" data-v="${i}">▶</button><button class="btn sm ghost" data-a="scEdit" data-v="${i}">✏️</button></div>
             </div></div>`; }).join('')}</div>
       </details>`;
   }
@@ -430,8 +435,19 @@
     const p = S.p, sc = p.scenes[i]; if (!sc || !f) return;
     const kind = /^video/.test(f.type) ? 'video' : 'image', id = await MV.putFile(f, f.name);
     if (sc.file && !p.scenes.some((o, k) => k !== i && o.file === sc.file)) MV.delFile(sc.file);
-    Object.assign(sc, { file: id, kind, name: f.name, ok: false, off: 0, thumb: await thumbOf(f) });
+    Object.assign(sc, { file: id, kind, name: f.name, ok: false, off: 0, thumb: await thumbOf(f) }); sc.auto = false;
+    applyReuse();
   }
+  /* ♻ 다시 쓰기: 「장면 14 = 장면 6」 칸에 6번 그림을 저절로 */
+  function applyReuse() { const S2 = S.p.scenes; S2.forEach(x => { if (x.reuse == null) return; const src = S2[x.reuse]; if (!src || !src.file) return; if (x.file && !x.auto) return; Object.assign(x, { file: src.file, kind: src.kind, name: src.name, thumb: src.thumb, off: 0, auto: true }); }); }
+  /* 🗂 서랍: 넣은 그림 · 몇 번 씀 */
+  function trayList() { const m = new Map(); S.p.scenes.forEach((x, i) => { if (!x.file) return; const o = m.get(x.file) || { file: x.file, kind: x.kind, name: x.name, thumb: x.thumb, uses: [] }; o.uses.push(i + 1); m.set(x.file, o); }); return [...m.values()]; }
+  function traySheet(i) {
+    const L = trayList(); if (!L.length) return toast('🗂 서랍이 비어 있어요 · 먼저 그림을 넣어 주세요', 3000);
+    sheet(i == null ? '🗂 서랍 (넣은 그림)' : `🗂 서랍 → 장면 ${i + 1}에 넣기`, `<p class="muted">${i == null ? '그림을 누르면 넣을 장면을 골라요.' : `누른 그림이 장면 ${i + 1}에 들어가요 (같은 그림 다시 쓰기).`}</p>
+      <div class="libGrid big">${L.map(o => `<button type="button" data-a="${i == null ? 'trayPick' : 'trayPut'}" data-v="${i == null ? esc(o.file) : i + ':' + esc(o.file)}">${o.thumb ? `<img src="${o.thumb}" alt="">` : '🎞'}<b>${o.uses.length}</b><i>${o.uses.length}번 씀 · ${o.uses.slice(0, 4).join(',')}${o.uses.length > 4 ? '…' : ''}</i></button>`).join('')}</div>`);
+  }
+  function trayPut(i, fileId) { const S2 = S.p.scenes, sc = S2[i], o = trayList().find(x => x.file === fileId); if (!sc || !o) return; if (sc.file && sc.file !== fileId && !S2.some((x, k) => k !== i && x.file === sc.file)) MV.delFile(sc.file); Object.assign(sc, { file: o.file, kind: o.kind, name: o.name, thumb: o.thumb, off: 0, auto: false }); applyReuse(); }
   async function setHero(f) {
     const p = S.p; if (p.look.heroImg) MV.delFile(p.look.heroImg);
     p.look.heroImg = await MV.putFile(f, f.name || '주인공.jpg'); p.look.heroThumb = await thumbOf(f); p.look.heroLock = false; save(); render();
@@ -732,7 +748,7 @@
       case 'clipLen': if (p.locked) return toast('🔒 잠겨 있어요'); if (p.scenes.some(s => s.file) && !confirm('장면 길이를 바꾸면 장면 칸 수가 바뀌어요. 넣은 영상은 앞에서부터 그대로 둘게요. 바꿀까요?')) return; p.clipLen = +v; p.scenes = MV.planScenes(p); save(); return render();
       case 'mode': { if (p.locked) return toast('🔒 잠겨 있어요'); const was = p.mode; p.mode = v; if (v === 'video' && ![8, 16, 24, 30].includes(p.clipLen)) p.clipLen = 8; const n0 = p.scenes.length; const nw = MV.planScenes(Object.assign({}, p, { scenes: [] })).length;
         if (nw < n0 && p.scenes.slice(nw).some(x => x.file) && !confirm(`장면이 ${n0}개 → ${nw}개로 줄어요. 뒤쪽에 넣은 그림 · 영상은 빠져요. 바꿀까요?`)) { p.mode = was; return render(); } p.scenes = MV.planScenes(p); save(); return render(); }
-      case 'picN': { if (p.locked) return toast('🔒 잠겨 있어요'); const n = clamp(p.scenes.length + +v, 2, 200); if (n < p.scenes.length && p.scenes[p.scenes.length - 1].file && !confirm(`${p.scenes.length}번 칸의 그림이 빠져요. 줄일까요?`)) return; p.picN = n; p.scenes = MV.planScenes(p); save(); return render(); }
+      case 'picN': { if (p.locked) return toast('🔒 잠겨 있어요'); const n = clamp(p.scenes.length + +v, 2, 200); if (n < p.scenes.length && p.scenes[p.scenes.length - 1].file && !confirm(`${p.scenes.length}번 칸의 그림이 빠져요. 줄일까요?`)) return; p.picN = n; p.scenes = MV.planScenes(p); save(); render(); if (n > 20 && +v > 0) toast('⚠️ 20장이 넘으면 ChatGPT 한도에 걸릴 수 있어요 · 후렴은 ♻ 다시 쓰기를 써 보세요', 4500); return; }
       case 'gptOpen': return g.open(GPT_URL, '_blank');
       case 'gemDraw': { const k = clamp(p.cpNext || 0, 0, p.scenes.length - 1); return copyOpen(sceneText(k), GEM_URL, `📋 장면 ${k + 1} 글 복사 · Gemini 그림에는 ✦ 마크가 들어가요`); }
       case 'heroShare': { const bl = await MV.getFile(p.look.heroImg); if (!bl) return toast('주인공 사진이 없어요'); const t = heroShareText(); await MV.copy(t); try { const f2 = new File([bl], '주인공.jpg', { type: bl.type || 'image/jpeg' }); if (navigator.canShare && navigator.canShare({ files: [f2] })) { await navigator.share({ files: [f2], text: t }); return toast('📤 ChatGPT를 고르세요 · 글이 빠졌으면 붙여넣기 (복사해 뒀어요)', 5000); } } catch (e) { if (e && e.name === 'AbortError') return; } return toast('이 휴대폰은 바로 보내기가 안 돼요 · ⬇ 저장 후 ChatGPT에서 ＋로 올리고 붙여넣기', 5000); }
@@ -759,7 +775,7 @@
       case 'kr': p.look.kr = v === '1'; save(); return render();
       case 'heroCopy': return copyOpen(heroText(), GPT_URL, '📋 주인공 그림 글을 복사했어요 · Flow(이미지)에 붙여넣기');
       case 'planPaste': { let t = ''; try { t = await navigator.clipboard.readText(); } catch (e) { /* 직접 */ } if (!t) { toast('칸을 길게 눌러 「붙여넣기」 후 「✅ 장면 글 넣기」를 눌러 주세요', 4000); return $('fPlan').focus(); } $('fPlan').value = t; const n = parsePlan(t); save(); render(); return toast(n ? `✅ 장면 글 ${n}개를 넣었어요` : '⚠️ 장면 글(S1: …)을 못 찾았어요 · Gemini 답을 통째로 복사했는지 봐 주세요', 4000); }
-      case 'cpNext': { const k = clamp(p.cpNext || 0, 0, p.scenes.length - 1); p.scenes[k].cp = 1; p.cpNext = Math.min(k + 1, p.scenes.length - 1); save(); await copyOpen(sceneText(k), null, `📋 장면 ${k + 1} 글 복사 · ${p.mode === 'image' ? '최근 앱(|||) → ChatGPT 그림 방에 붙여넣기' : 'Flow에 붙여넣기'}${k + 1 >= p.scenes.length ? ' · 마지막 장면이에요' : ''}`); return render(); }
+      case 'cpNext': { let k = clamp(p.cpNext || 0, 0, p.scenes.length - 1); while (p.scenes[k] && p.scenes[k].reuse != null && k < p.scenes.length - 1) k++; p.scenes[k].cp = 1; let nx = Math.min(k + 1, p.scenes.length - 1); while (p.scenes[nx] && p.scenes[nx].reuse != null && nx < p.scenes.length - 1) nx++; p.cpNext = nx; save(); await copyOpen(sceneText(k), null, `📋 장면 ${k + 1} 글 복사 · ${p.mode === 'image' ? '최근 앱(|||) → ChatGPT 그림 방에 붙여넣기' : 'Flow에 붙여넣기'}${k + 1 >= p.scenes.length ? ' · 마지막 장면이에요' : ''}`); return render(); }
       case 'cpBack': p.cpNext = Math.max(0, (p.cpNext || 0) - 1); save(); return render();
       case 'cpReset': if (confirm('복사 표시를 지우고 장면 1부터 다시 할까요?')) { p.scenes.forEach(s => { s.cp = 0; }); p.cpNext = 0; save(); render(); } return;
       case 'scCopy': p.scenes[+v].cp = 1; p.cpNext = Math.min(+v + 1, p.scenes.length - 1); save(); if (S.win == null) setTimeout(render, 50); return copyOpen(sceneText(+v), null, `📋 장면 ${+v + 1} 글을 복사했어요 · ${p.mode === 'image' ? 'ChatGPT 그림 방' : 'Flow'}에 붙여넣기`);
@@ -767,13 +783,17 @@
       case 'bulk': {
         if (p.locked) return toast('🔒 잠겨 있어요');
         const fs = (await pickFiles('video/*,image/*', true)).sort((x, y) => x.name.localeCompare(y.name, 'ko', { numeric: true })); if (!fs.length) return;
-        let slots = p.scenes.map((s, i) => s.file ? -1 : i).filter(i => i >= 0);
-        if (!slots.length) { if (!confirm('빈 칸이 없어요. 1번 장면부터 바꿔 넣을까요?')) return; slots = p.scenes.map((s, i) => i); }
+        let slots = p.scenes.map((s, i) => s.file || s.reuse != null ? -1 : i).filter(i => i >= 0);
+        if (!slots.length) { if (!confirm('빈 칸이 없어요. 1번 장면부터 바꿔 넣을까요?')) return; slots = p.scenes.map((s, i) => s.reuse != null ? -1 : i).filter(i => i >= 0); }
         toast('📥 넣는 중…', 9000); let n = 0; for (const f of fs) { if (n >= slots.length) break; await putScene(slots[n++], f); }
-        save(); render(); return toast(`📥 ${n}개를 넣었어요${fs.length > n ? ` (칸이 모자라 ${fs.length - n}개는 빠졌어요)` : ''}`, 4000);
+        applyReuse(); save(); render(); const nr = p.scenes.filter(x => x.reuse != null).length; return toast(`📥 ${n}개를 넣었어요${nr ? ` · ♻ 다시 쓰기 ${nr}칸은 저절로` : ''}${fs.length > n ? ` (칸이 모자라 ${fs.length - n}개는 빠졌어요)` : ''}`, 4500);
       }
       case 'mp4Save': if (!S.lastUrl) return; download(S.lastUrl, p.mp4.name); return toast(`📂 내 파일 → 다운로드에 「${p.mp4.name}」로 저장했어요`, 5000);
       case 'mp4Share': { try { const f2 = new File([S.lastBlob], p.mp4.name, { type: 'video/mp4' }); if (navigator.canShare && navigator.canShare({ files: [f2] })) await navigator.share({ files: [f2], title: p.title }); else toast('이 휴대폰은 바로 보내기가 안 돼요 · ⬇️ 저장 후 보내 주세요'); } catch (e) { /* 취소 */ } return; }
+      case 'tray': return traySheet(null);
+      case 'trayFor': if (p.locked) return toast('🔒 잠겨 있어요'); return traySheet(+v);
+      case 'trayPut': { sheetClose(); const [i, fid] = [v.slice(0, v.indexOf(':')), v.slice(v.indexOf(':') + 1)]; trayPut(+i, fid); save(); if (S.p.step === 5 || S.p.step === 3) editRefresh(); else render(); return toast(`♻ 장면 ${+i + 1}에 넣었어요`); }
+      case 'trayPick': { const o = trayList().find(x => x.file === v); return sheet('🗂 이 그림을 넣을 장면', `<p class="muted">지금 ${o.uses.length}번 씀 (${o.uses.join(', ')}번)</p><div class="numGrid">${p.scenes.map((x, i) => `<button type="button" class="${x.file === v ? 'on' : ''}" data-a="trayPut" data-v="${i}:${esc(v)}">${i + 1}${x.reuse != null ? '♻' : ''}${x.file && x.file !== v ? '·' : ''}</button>`).join('')}</div>`); }
       case 'libOpen': { const k = p.scenes.findIndex(x => !x.file); return libPick(k < 0 ? 0 : k); }
       case 'libTog': { const k = LIB.sel.indexOf(v); if (k >= 0) LIB.sel.splice(k, 1); else if (LIB.sel.length < LIB.max) LIB.sel.push(v); return libSheet(); }
       case 'libGo': { sheetClose(); toast('🗂 넣는 중…', 9000); let n = 0; for (const id of LIB.sel) { const k = LIB.start + n; if (!p.scenes[k]) break; const f = await MV.libGet(id); if (f) { await putScene(k, f); n++; } } save(); if (S.p.step === 5 || S.p.step === 3) editRefresh(); else render(); return toast(`🗂 ${n}개를 ${LIB.start + 1}번부터 넣었어요`); }
@@ -865,7 +885,7 @@
   document.addEventListener('play', e => { if (e.target.id === 'songAu' && S.player) S.player.pause(); }, true);
   document.addEventListener('toggle', e => { if (e.target.tagName === 'DETAILS' && e.target.open) tapShow(S.player ? S.player.time() : 0); }, true);
 
-  MV.UI = { S, toast, save, render, renderStage, go, copyOpen, chip, applyLyrics, sheet, sheetClose, pickFiles, thumbOf, putScene, delScene, tapShow, libPick, act: (a, v, el) => act(a, v, el), get p() { return S.p; } };
+  MV.UI = { traySheet, S, toast, save, render, renderStage, go, copyOpen, chip, applyLyrics, sheet, sheetClose, pickFiles, thumbOf, putScene, delScene, tapShow, libPick, act: (a, v, el) => act(a, v, el), get p() { return S.p; } };
   g.addEventListener('DOMContentLoaded', () => {
     $('homeBtn').addEventListener('click', () => home());
     home();

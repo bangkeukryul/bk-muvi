@@ -85,28 +85,43 @@
   /* 자막에 쓸 줄: 시간이 맞춰진 줄만 */
   function capLines(p) {
     const L = p.lines || [], dur = (p.song && p.song.dur) || 1e9, out = [];
-    L.forEach((l, i) => { if (l.s == null) return; let e = l.e; if (e == null) { const nx = L.slice(i + 1).find(q => q.s != null); e = nx ? nx.s : l.s + 6; e = Math.min(e, l.s + 8, dur); } out.push({ t: l.t, s: l.s, e: Math.max(l.s + .3, e), i }); });
+    L.forEach((l, i) => { if (l.s == null) return; const nx = L.slice(i + 1).find(q => q.s != null); let e = l.e;
+      if (e == null) { e = nx ? nx.s : l.s + 6; e = Math.min(e, l.s + 8, dur); }
+      else if (nx && nx.s - e < .5 && nx.s > e) e = nx.s;          // 줄 사이가 아주 짧으면 깜빡이지 않게 이어 주기
+      if (nx && e > nx.s) e = nx.s;                                 // 다음 줄이 시작되면 앞 줄은 바로 사라지게
+      out.push({ t: l.t, s: l.s, e: Math.max(l.s + .3, e), i }); });
     return out;
   }
   let CF = FONT;
   function fitFont(x, text, px, maxW) { let f = px; x.font = `900 ${f}px ${CF}`; while (f > 12 && x.measureText(text).width > maxW) { f -= 2; x.font = `900 ${f}px ${CF}`; } return f; }
+  /* 긴 가사는 두 줄로 (가운데 가까운 띄어쓰기에서 나누기) */
+  function split2(x, text, px, maxW) {
+    x.font = `900 ${px}px ${CF}`; if (x.measureText(text).width <= maxW) return [text];
+    const mid = text.length / 2; let best = -1;
+    for (let i = 0; i < text.length; i++) if (text[i] === ' ' && (best < 0 || Math.abs(i - mid) < Math.abs(best - mid))) best = i;
+    if (best < 0) best = Math.round(mid);
+    return [text.slice(0, best).trim(), text.slice(best).trim()].filter(Boolean);
+  }
   function drawCaps(x, W, H, p, t, CL) {
     const st = p.cap.style; if (st === 'none') return; CF = g.BKFX && p.cap.font ? g.BKFX.fam(p.cap.font) : FONT;
     CL = CL || capLines(p);
     let k = -1; for (let j = CL.length - 1; j >= 0; j--) if (t >= CL[j].s - .05 && t < CL[j].e) { k = j; break; }
     if (k < 0) return;
-    const c = CL[k], base = Math.round(Math.min(W, H) * .072 * (p.cap.size || 1));
-    const y = p.cap.pos === 'top' ? H * .14 : p.cap.pos === 'middle' ? H * .5 : H * (p.ratio === '9:16' ? .78 : .86);
-    const fade = clamp((t - c.s + .05) / .2, 0, 1) * clamp((c.e - t) / .2, 0, 1);
+    const c = CL[k], base = Math.round(Math.min(W, H) * .072 * (p.cap.size || 1)), maxW = W * .9;
+    const y0 = p.cap.pos === 'top' ? H * .14 : p.cap.pos === 'middle' ? H * .5 : H * (p.ratio === '9:16' ? .78 : .86);
+    const fade = clamp((t - c.s + .05) / .15, 0, 1) * clamp((c.e - t) / .15, 0, 1);
     x.save(); x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineJoin = 'round';
-    const f = fitFont(x, c.t, base, W * .9);
+    const rows = split2(x, c.t, base, maxW); let f = base; for (const r of rows) f = Math.min(f, fitFont(x, r, base, maxW)); x.font = `900 ${f}px ${CF}`;
+    const lh = f * 1.25, n = rows.length, ys = rows.map((r, i) => p.cap.pos === 'top' ? y0 + i * lh : p.cap.pos === 'middle' ? y0 + (i - (n - 1) / 2) * lh : y0 - (n - 1 - i) * lh);
     const outline = (s, yy, fill, a) => { x.globalAlpha = a; x.lineWidth = Math.max(4, f * .18); x.strokeStyle = 'rgba(0,0,0,.85)'; x.strokeText(s, W / 2, yy); x.fillStyle = fill; x.fillText(s, W / 2, yy); };
     if (st === 'karaoke' || st === 'two') {
-      const tw = x.measureText(c.t).width, left = W / 2 - tw / 2, pr = clamp((t - c.s) / Math.max(.3, (c.e - c.s) * .88), 0, 1);
-      outline(c.t, y, '#ffffff', fade);
-      x.save(); x.beginPath(); x.rect(left - 4, y - f, (tw + 8) * pr, f * 2); x.clip(); x.globalAlpha = fade; x.fillStyle = p.cap.color || '#ffe14d'; x.fillText(c.t, W / 2, y); x.restore();
-      if (st === 'two' && CL[k + 1]) { const n = CL[k + 1].t, f2 = fitFont(x, n, Math.round(base * .78), W * .86); x.font = `900 ${f2}px ${CF}`; const y2 = p.cap.pos === 'top' ? y + f * 1.35 : y - f * 1.35; x.lineWidth = Math.max(3, f2 * .16); x.globalAlpha = fade * .8; x.strokeStyle = 'rgba(0,0,0,.8)'; x.strokeText(n, W / 2, y2); x.fillStyle = 'rgba(255,255,255,.75)'; x.fillText(n, W / 2, y2); }
-    } else outline(c.t, y, '#ffffff', fade);
+      const span = (c.e - c.s) * (p.cap.speed === 'fast' ? .7 : .88), pr = clamp((t - c.s) / Math.max(.3, span), 0, 1);
+      const ws = rows.map(r => x.measureText(r).width), tot = ws.reduce((a, b) => a + b, 0) || 1; let done = pr * tot;
+      rows.forEach((r, i) => { const tw = ws[i], left = W / 2 - tw / 2, part = clamp(done / tw, 0, 1); done -= tw;
+        outline(r, ys[i], '#ffffff', fade);
+        if (part > 0) { x.save(); x.beginPath(); x.rect(left - 4, ys[i] - f, (tw + 8) * part, f * 2); x.clip(); x.globalAlpha = fade; x.fillStyle = p.cap.color || '#ffe14d'; x.fillText(r, W / 2, ys[i]); x.restore(); } });
+      if (st === 'two' && CL[k + 1]) { const nt = CL[k + 1].t, f2 = fitFont(x, nt, Math.round(base * .74), W * .86); x.font = `900 ${f2}px ${CF}`; const y2 = p.cap.pos === 'top' ? ys[n - 1] + f * 1.35 : ys[0] - f * 1.3; x.lineWidth = Math.max(3, f2 * .16); x.globalAlpha = fade * .8; x.strokeStyle = 'rgba(0,0,0,.8)'; x.strokeText(nt, W / 2, y2); x.fillStyle = 'rgba(255,255,255,.75)'; x.fillText(nt, W / 2, y2); }
+    } else rows.forEach((r, i) => outline(r, ys[i], '#ffffff', fade));
     x.restore();
   }
   function bigText(x, W, H, text, a, sub) {

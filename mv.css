@@ -176,3 +176,37 @@ header.top button{border:0;border-radius:10px;padding:6px 10px;background:#fffff
 .nextCp .btn.big{margin:6px 0}
 .cpd{font-size:.7rem;background:#ede9fe;color:var(--p);border-radius:6px;padding:0 5px;font-weight:800}
 .cpd.ok{background:#dcfce7;color:#15803d}
+/* 3. 노래 · 장면 맞추기 */
+.pvStick{position:sticky;top:106px;z-index:12;background:#fff;padding-bottom:4px}
+.pvStick .pv canvas{max-height:27vh;width:auto;max-width:100%}
+.pvStick .pv.v916 canvas{height:27vh}
+.pvStick .tp{margin:4px 0}
+.grp{border:1.5px solid var(--line);border-radius:14px;padding:8px 10px;margin:8px 0;background:#fff}
+.grp>summary{font-weight:900;cursor:pointer;padding:4px 0}
+.fillTop{display:flex;gap:8px;align-items:center;margin:6px 0}
+.heroMini{width:44px;height:44px;border-radius:12px;object-fit:cover;flex:none;border:2px solid #fde047}
+.strip{display:flex;gap:6px;overflow-x:auto;padding:4px 0 8px;scrollbar-width:thin}
+.stp{position:relative;flex:none;width:96px;aspect-ratio:16/9;border:0;border-radius:10px;overflow:hidden;background:#1e1b4b;color:#fff9;padding:0}
+.stp.v916{width:60px;aspect-ratio:9/16}
+.stp img{width:100%;height:100%;object-fit:cover}
+.stp i{font-style:normal;font-size:.72rem}
+.stp .k{position:absolute;left:3px;top:2px;background:#000a;color:#fff;border-radius:6px;padding:0 5px;font-size:.7rem;font-weight:800}
+.stp .bdg{position:absolute;right:2px;bottom:1px;font-size:.7rem}
+.heroBox{display:flex;gap:10px;align-items:flex-start;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:14px;padding:10px;margin-top:8px}
+.heroBox img,.heroBox .heroNo{width:72px;height:72px;border-radius:12px;object-fit:cover;flex:none;background:#fde68a;display:flex;align-items:center;justify-content:center;font-size:2rem}
+.heroBox .bd{flex:1;min-width:0}
+/* 장면 하나씩 창 */
+#scw{z-index:70}
+.scwBox{background:#fff;width:100%;max-width:720px;max-height:94vh;overflow:auto;border-radius:20px 20px 0 0;padding:10px 12px 16px;animation:sheetUp .2s ease-out}
+.scwHd{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.scwHd b{flex:1;text-align:center;font-size:.98rem}
+#scwPv .pv canvas{max-height:34vh;width:auto;max-width:100%}
+#scwPv .pv.v916 canvas{height:34vh}
+.scwLy{border:1.5px solid var(--line);border-radius:12px;padding:4px 8px;margin:6px 0;max-height:120px;overflow:auto}
+.wl{display:flex;gap:6px;align-items:center;padding:3px 0;font-size:.9rem;border-bottom:1px solid #f4f2fb}
+.wl .t{font-variant-numeric:tabular-nums;color:var(--p);font-weight:800;min-width:44px;font-size:.78rem}
+.wl .t.no{color:#cbd5e1}
+.wl.nxt{background:#fef3c7;border-radius:8px}
+.wl.cur{color:#b45309;font-weight:900}
+.scwNav{display:flex;gap:8px;margin-top:10px}
+.scwNav .btn{flex:1}

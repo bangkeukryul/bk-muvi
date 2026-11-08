@@ -180,6 +180,7 @@
     if (slot && p.song) { slot.appendChild(S.pv); S.pv.querySelector('#pvWrap').classList.toggle('v916', p.ratio === '9:16'); S.player.refresh(); S.player.draw(); onTime(S.player.time()); }
     else if (S.player) { S.player.pause(); if (S.pv.parentNode) S.pv.remove(); }
     MV.TL.afterRender();
+    if (n === 5) showLast();
     if (n === 3) tapShow(S.player ? S.player.time() : 0);
   }
   function render() {
@@ -466,6 +467,7 @@
         <p class="muted">만드는 동안 화면을 켜 두세요. 3분 노래는 몇 분 걸려요.</p>
         <button class="btn pink big" data-a="export" id="expBtn">💾 뮤직비디오 만들기</button>
         <div id="expBox"></div>
+        <div id="lastBox"></div>
       </div>`;
   };
   /* ═════════ 6. ✨ 효과 (BK에딧 · BK쇼츠 효과 모음 fx.js) ═════════ */
@@ -628,6 +630,18 @@
     const v = clamp(+(b.s + d).toFixed(2), a.s + .5, b.e - .5); b.s = v; a.e = v;
   }
 
+  function download(url, name) { const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
+  /* 🎞 마지막으로 만든 영상 (BK뮤비 안에 보관 · 화면을 옮겨도 남아요) */
+  async function showLast() {
+    const box = $('lastBox'), p = S.p; if (!box || !p) return;
+    if (!p.mp4 || !p.mp4.file) { box.innerHTML = ''; return; }
+    if (S.lastId !== p.mp4.file) { const bl = await MV.getFile(p.mp4.file); if (!bl) { box.innerHTML = ''; return; } S.lastBlob = bl; S.lastId = p.mp4.file; if (S.lastUrl) URL.revokeObjectURL(S.lastUrl); S.lastUrl = URL.createObjectURL(bl); }
+    const m = p.mp4, d = new Date(m.at);
+    box.innerHTML = `<div class="lastMv"><h3>🎞 마지막으로 만든 영상</h3>
+      <div class="note blue">✅ <b>${esc(m.name)}</b> · ${m.W}x${m.H} · ${(m.size / 1048576).toFixed(1)}MB · ${d.toLocaleDateString('ko-KR')} ${d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}${m.warning ? '<br>⚠️ ' + esc(m.warning) : ''}<br>📂 휴대폰 <b>내 파일 → 다운로드</b> 폴더에 저장돼요 (갤러리 「Download」 앨범)</div>
+      <video src="${S.lastUrl}" controls playsinline style="width:100%;max-height:50vh;border-radius:12px;background:#000"></video>
+      <div class="row" style="margin-top:8px"><button class="btn main" data-a="mp4Save">⬇️ 휴대폰에 다시 저장</button><button class="btn" data-a="mp4Share">📤 보내기</button></div></div>`;
+  }
   async function doExport() {
     const p = S.p; if (S.busy) return; if (!p.scenes.some(s => s.file)) return toast('장면이 비어 있어요');
     S.busy = true; S.player.pause(); const box = $('expBox'), btn = $('expBtn'), ctl = {};
@@ -636,13 +650,13 @@
     let lock = null; try { lock = await navigator.wakeLock.request('screen'); } catch (e) { /* 없어도 됨 */ }
     try {
       const r = await MV.exportMp4(p, S.q, (f, m) => { const b = $('expBar'), t = $('expMsg'); if (b) b.style.width = Math.round(f * 100) + '%'; if (t) t.textContent = m; }, ctl);
-      const url = URL.createObjectURL(r.blob), name = (p.title || 'BK뮤비').replace(/[\\/:*?"<>|]/g, '') + '.mp4';
-      p.exported = Date.now(); save();
-      box.innerHTML = `<div class="note blue">✅ 다 만들었어요! (${r.W}x${r.H} · ${(r.blob.size / 1048576).toFixed(1)}MB)${r.warning ? '<br>⚠️ ' + r.warning : ''}</div>
-        <video src="${url}" controls playsinline style="width:100%;border-radius:12px;background:#000"></video>
-        <div class="row" style="margin-top:8px"><a class="btn main" href="${url}" download="${esc(name)}">⬇️ 휴대폰에 저장</a><button class="btn" id="expShare">📤 보내기</button></div>`;
-      $('expShare').onclick = async () => { try { const f = new File([r.blob], name, { type: 'video/mp4' }); if (navigator.canShare && navigator.canShare({ files: [f] })) await navigator.share({ files: [f], title: p.title }); else toast('이 휴대폰은 바로 보내기가 안 돼요 · ⬇️ 저장 후 보내 주세요'); } catch (e) { /* 취소 */ } };
-
+      const name = (p.title || 'BK뮤비').replace(/[\\/:*?"<>|]/g, '') + '.mp4';
+      const id = await MV.putFile(r.blob, name); if (p.mp4 && p.mp4.file) MV.delFile(p.mp4.file);
+      p.mp4 = { file: id, name, size: r.blob.size, at: Date.now(), W: r.W, H: r.H, warning: r.warning || '' }; p.exported = Date.now(); save();
+      S.lastBlob = r.blob; S.lastId = id; if (S.lastUrl) URL.revokeObjectURL(S.lastUrl); S.lastUrl = URL.createObjectURL(r.blob);
+      download(S.lastUrl, name);
+      box.innerHTML = ''; showLast();
+      toast(`📂 내 파일 → 다운로드에 「${name}」로 저장했어요`, 6000);
     } catch (e) { box.innerHTML = `<div class="note red">⚠️ ${esc(e.message || e)}</div>`; }
     finally { S.busy = false; if ($('expBtn')) $('expBtn').disabled = false; if (lock) try { lock.release(); } catch (e) { /* 괜찮음 */ } S.player.seek(S.player.time()); }
   }
@@ -703,6 +717,8 @@
         toast('📥 넣는 중…', 9000); let n = 0; for (const f of fs) { if (n >= slots.length) break; await putScene(slots[n++], f); }
         save(); render(); return toast(`📥 ${n}개를 넣었어요${fs.length > n ? ` (칸이 모자라 ${fs.length - n}개는 빠졌어요)` : ''}`, 4000);
       }
+      case 'mp4Save': if (!S.lastUrl) return; download(S.lastUrl, p.mp4.name); return toast(`📂 내 파일 → 다운로드에 「${p.mp4.name}」로 저장했어요`, 5000);
+      case 'mp4Share': { try { const f2 = new File([S.lastBlob], p.mp4.name, { type: 'video/mp4' }); if (navigator.canShare && navigator.canShare({ files: [f2] })) await navigator.share({ files: [f2], title: p.title }); else toast('이 휴대폰은 바로 보내기가 안 돼요 · ⬇️ 저장 후 보내 주세요'); } catch (e) { /* 취소 */ } return; }
       case 'libOpen': { const k = p.scenes.findIndex(x => !x.file); return libPick(k < 0 ? 0 : k); }
       case 'libTog': { const k = LIB.sel.indexOf(v); if (k >= 0) LIB.sel.splice(k, 1); else if (LIB.sel.length < LIB.max) LIB.sel.push(v); return libSheet(); }
       case 'libGo': { sheetClose(); toast('🗂 넣는 중…', 9000); let n = 0; for (const id of LIB.sel) { const k = LIB.start + n; if (!p.scenes[k]) break; const f = await MV.libGet(id); if (f) { await putScene(k, f); n++; } } save(); if (S.p.step === 5 || S.p.step === 3) editRefresh(); else render(); return toast(`🗂 ${n}개를 ${LIB.start + 1}번부터 넣었어요`); }

@@ -22,7 +22,7 @@
   MV.listProjects = () => tx('projects', 'readonly', s => s.getAll()).then(a => (a || []).sort((x, y) => (y.at || 0) - (x.at || 0)));
   MV.getProject = id => tx('projects', 'readonly', s => s.get(id));
   MV.putProject = p => tx('projects', 'readwrite', s => s.put(JSON.parse(JSON.stringify(p))));
-  MV.delProject = async p => { const keys = [p.song && p.song.file, ...(p.scenes || []).map(s => s.file)].filter(Boolean); await tx('files', 'readwrite', s => { keys.forEach(k => s.delete(k)); return null; }); return tx('projects', 'readwrite', s => s.delete(p.id)); };
+  MV.delProject = async p => { const keys = [p.song && p.song.file, p.mp4 && p.mp4.file, p.thumb && p.thumb.file, p.look && p.look.heroImg, ...(p.scenes || []).map(s => s.file)].filter(Boolean); await tx('files', 'readwrite', s => { keys.forEach(k => s.delete(k)); return null; }); return tx('projects', 'readwrite', s => s.delete(p.id)); };
   MV.putFile = (blob, name) => { const id = 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); return tx('files', 'readwrite', s => s.put({ id, blob, name: name || '', type: blob.type || '' })).then(() => id); };
   MV.getFile = id => id ? tx('files', 'readonly', s => s.get(id)).then(r => r ? r.blob : null) : Promise.resolve(null);
   MV.delFile = id => id ? tx('files', 'readwrite', s => s.delete(id)) : Promise.resolve();

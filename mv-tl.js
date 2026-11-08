@@ -13,7 +13,9 @@
   /* ═════════ ↩ 되돌리기 ═════════ */
   const KEYS = ['scenes', 'lines', 'efx', 'stk', 'sfx', 'thumb', 'endc', 'song', 'fx'];
   function snapOf(p) { const o = {}; KEYS.forEach(k => { o[k] = JSON.stringify(p[k] === undefined ? null : p[k]); }); return o; }
-  function rmScene(p, i) { const c = p.scenes[i]; if (i > 0) p.scenes[i - 1].e = c.e; else p.scenes[1].s = 0; p.scenes.splice(i, 1);
+  function rmScene(p, i) { const c = p.scenes[i], D = dur(), ov = p.scenes[p.scenes.length - 1].e > D + .05;
+    if (ov) { const len = c.e - c.s; p.scenes.splice(i, 1); shiftFrom(p, i, -len); const L = p.scenes[p.scenes.length - 1]; if (L && L.e < D) L.e = D; if (p.scenes[0]) p.scenes[0].s = 0; }
+    else { if (i > 0) p.scenes[i - 1].e = c.e; else p.scenes[1].s = 0; p.scenes.splice(i, 1); }
     p.scenes.forEach(o => { if (o.reuse == null) return; if (o.reuse === i) o.reuse = null; else if (o.reuse > i) o.reuse--; });
     if (p.cpNext > i) p.cpNext--; if (c.file && !p.scenes.some(o => o.file === c.file)) MV.delFile(c.file); }
   function pinSig(p) { return (p.scenes || []).filter(o => o.pin).map(o => `${o.id}:${o.s}:${o.e}:${o.file}`).join('|'); }
@@ -21,14 +23,20 @@
   function restore(o) { const p = P(); KEYS.forEach(k => { p[k] = JSON.parse(o[k]); }); }
   function undo() { if (!T.undo.length) return U().toast('되돌릴 것이 없어요'); T.redo.push(snapOf(P())); restore(T.undo.pop()); changed(); U().toast('↩ 되돌렸어요'); }
   function redo() { if (!T.redo.length) return; T.undo.push(snapOf(P())); restore(T.redo.pop()); changed(); }
-  function changed(keepSheet) { const s = S(); s.player.refresh(); if (!s.player.playing()) s.player.seek(s.player.time()); U().save(); refreshView(); if (!keepSheet && T.sheetFn) reSheet(); }
+  function changed(keepSheet) { const ovNow = P().scenes && over() > .05; if (T.wasOver && !ovNow) setTimeout(() => U().toast('✅ 장면이 노래 길이와 딱 맞아요'), 1200); T.wasOver = ovNow; const s = S(); s.player.refresh(); if (!s.player.playing()) s.player.seek(s.player.time()); U().save(); refreshView(); if (!keepSheet && T.sheetFn) reSheet(); }
   function now() { return +S().player.time().toFixed(2); }
   function dur() { return (P().song && P().song.dur) || 0; }
+  function total() { const S2 = P().scenes || []; return Math.max(dur(), S2.length ? S2[S2.length - 1].e : 0); }
+  function over() { return +(total() - dur()).toFixed(1); }
+  function shiftFrom(p, k, d) { for (let j = k; j < p.scenes.length; j++) { p.scenes[j].s = +(p.scenes[j].s + d).toFixed(2); p.scenes[j].e = +(p.scenes[j].e + d).toFixed(2); } }
+  function reorder(p, i, to) { const old = p.scenes.slice(), tm = old.map(o => [o.s, o.e]), A = old[i]; const arr = old.slice(); arr.splice(i, 1); arr.splice(to, 0, A);
+    arr.forEach((o, k) => { o.s = tm[k][0]; o.e = tm[k][1]; }); arr.forEach(o => { if (o.reuse != null) { const src = old[o.reuse]; o.reuse = src ? arr.indexOf(src) : null; if (o.reuse === arr.indexOf(o) || o.reuse < 0) o.reuse = null; } }); p.scenes = arr; }
 
   /* ═════════ 장면 경계 옮기기 (BK쇼츠 「제자리 · 따라감」) ═════════ */
   function setBoundary(j, t, mode) {
     const p = P(), sc = p.scenes, a = sc[j - 1], b = sc[j]; if (!a || !b) return false;
     const D = dur(); t = +t.toFixed(2);
+    if (mode === 'follow' && sc[sc.length - 1].e > D + .05) { t = Math.max(t, a.s + .3); const d = t - b.s; for (let k = j; k < sc.length; k++) { sc[k].s = +(sc[k].s + d).toFixed(2); sc[k].e = +(sc[k].e + d).toFixed(2); } a.e = t; if (sc[sc.length - 1].e < D) sc[sc.length - 1].e = D; return true; }
     if (mode === 'follow') {
       t = clamp(t, a.s + .3, D - .3 * (sc.length - j)); const d = t - b.s;
       for (let k = j; k < sc.length; k++) { sc[k].s = +(sc[k].s + d).toFixed(2); sc[k].e = +(sc[k].e + d).toFixed(2); }
@@ -42,12 +50,13 @@
   /* ═════════ 타임라인 (가운데 고정 커서 · 밀면 움직여요) ═════════ */
   const COL = ['#7c3aed', '#db2777', '#2563eb', '#0d9488', '#ea580c', '#4f46e5'];
   function rows(mode) {
-    const p = P(), pps = T.pps[mode], D = dur(), sc = p.scenes || [], selS = mode === 'fill' ? T.fsel : (T.esel && T.esel.k === 'sc' ? T.esel.i : -1);
-    const H = mode === 'fill' ? 70 : 54;
+    const p = P(), pps = T.pps[mode], D = dur(), TT = mode === 'fill' ? total() : D, sc = p.scenes || [], selS = mode === 'fill' ? T.fsel : (T.esel && T.esel.k === 'sc' ? T.esel.i : -1);
+    const H = mode === 'fill' ? 56 : 54;
     let h = `<div class="tlrow" style="height:${H}px">${sc.map((s, i) => { const w = Math.max(4, (s.e - s.s) * pps - 2), long = s.kind === 'video' && (s.e - s.s) > 8.3 && !(s.speed && s.speed < 1);
-      return `<div class="tb${i === selS ? ' sel' : ''}" data-tl="sc:${i}" style="left:${s.s * pps}px;width:${w}px;${s.thumb ? `background-image:url(${s.thumb})` : `background-color:${s.file ? COL[i % COL.length] : '#334155'}`}"><span class="tn">${i + 1}${s.pin ? ' 🔒' : ''}</span><span class="tdur">${(s.e - s.s).toFixed(1)}초${long ? ' ⚠️' : ''}</span></div>`; }).join('')}`;
+      return `<div class="tb${i === selS ? ' sel' : ''}${mode === 'fill' && s.s >= D - .01 && TT > D + .05 ? ' over' : ''}" data-tl="sc:${i}" style="left:${s.s * pps}px;width:${w}px;${s.thumb ? `background-image:url(${s.thumb})` : `background-color:${s.file ? COL[i % COL.length] : '#334155'}`}"><span class="tn">${i + 1}${s.pin ? ' 🔒' : ''}</span><span class="tdur">${(s.e - s.s).toFixed(1)}초${long ? ' ⚠️' : ''}</span></div>`; }).join('')}`;
     if (p.thumb && p.thumb.on) h += `<div class="tb card" data-tl="th:0" style="left:0;width:${Math.max(18, p.thumb.dur * pps - 2)}px">🖼 썸네일</div>`;
     if (p.endc && p.endc.on) h += `<div class="tb card end" data-tl="en:0" style="left:${(D - p.endc.dur) * pps}px;width:${Math.max(18, p.endc.dur * pps - 2)}px">🏁 엔딩</div>`;
+    if (mode === 'fill' && TT > D + .05) h += `<div class="tlEnd" style="left:${D * pps}px"><b>🎵 노래 끝</b></div>`;
     h += '</div>';
     if (mode === 'edit') {
       const sel = T.esel || {}, CL = MV.capLines(p);
@@ -56,7 +65,7 @@
       const F = g.BKFX || {};
       h += `<div class="tlrow thin">${(p.efx || []).map((e, i) => `<div class="tb fx${sel.k === 'efx' && sel.i === i ? ' sel' : ''}" data-tl="efx:${i}" style="left:${e.start * pps}px;width:${Math.max(10, e.dur * pps - 2)}px">${((F.EFX || {})[e.k] || '✨').split(' ')[0]}</div>`).join('')}${(p.stk || []).map((e, i) => `<div class="tb st${sel.k === 'stk' && sel.i === i ? ' sel' : ''}" data-tl="stk:${i}" style="left:${e.start * pps}px;width:${Math.max(10, e.dur * pps - 2)}px">${e.e || '🔤'}</div>`).join('')}${(p.sfx || []).map((e, i) => `<div class="tb sf${sel.k === 'sfx' && sel.i === i ? ' sel' : ''}" data-tl="sfx:${i}" style="left:${e.at * pps}px;width:16px">🔔</div>`).join('')}</div>`;
     }
-    const ticks = []; const step = pps >= 30 ? 2 : 10; for (let s = 0; s <= D; s += step) ticks.push(`<span style="left:${s * pps}px">${fmt0(s)}</span>`);
+    const ticks = []; const step = pps >= 30 ? 2 : 10; for (let s = 0; s <= TT; s += step) ticks.push(`<span style="left:${s * pps}px">${fmt0(s)}</span>`);
     return `<div class="tlticks">${ticks.join('')}</div>` + h;
   }
   function tlHTML(mode) {
@@ -65,7 +74,7 @@
   }
   function tlFit(mode) {
     const x = $('tlx_' + mode), inn = $('tlin_' + mode), c = $('tlc_' + mode); if (!x || !inn) return;
-    const half = Math.round(x.clientWidth / 2), W = dur() * T.pps[mode];
+    const half = Math.round(x.clientWidth / 2), W = (mode === 'fill' ? total() : dur()) * T.pps[mode];
     inn.style.width = (W + half * 2) + 'px'; c.style.left = half + 'px'; c.style.width = W + 'px';
     tlScroll(mode, S().player.time());
     if (!x.dataset.on) { x.dataset.on = 1; let raf = 0;
@@ -81,13 +90,19 @@
     if (T.tapMode) return `<div class="tapScene"><div class="muted">🎵 노래를 들으며 <b>다음 장면으로 바뀔 순간</b>마다 톡 · 지금 장면 <b>${T.tapJ}</b> → ${T.tapJ + 1}</div>
       <button class="tapbtn" data-a="fTap">👆 다음 장면!</button>
       <div class="row" style="margin-top:8px"><button class="btn" data-a="fTapUndo">↩ 다시 (방금 것 취소)</button><button class="btn ghost" data-a="fTapStop">■ 그만</button></div></div>${tlHTML('fill')}`;
+    const ov = over(), clip = T.clip, last = sc.length - 1;
     return `${L ? '<div class="note red">🔒 잠겨 있어요 — 장면 길이를 바꾸려면 ③ 잠금에서 풀어 주세요</div>' : ''}
-      <div class="nud">${[[-1, '◀◀ 1초'], [-.1, '◀ 0.1초'], [.1, '0.1초 ▶'], [1, '1초 ▶▶']].map(a => `<button type="button" data-a="fNud" data-v="${a[0]}">${a[1]}</button>`).join('')}</div>
-      <div class="cutRow">
-        <button type="button" data-a="fCut"${dis}>✂️ 여기서 끝</button><button type="button" data-a="fPrev"${dis}>➡️ 앞 장면 여기까지</button><button type="button" data-a="fNextHere"${dis}>⬅️ 뒤 장면 여기부터</button><button type="button" data-a="fBlank"${dis}>⬜ 빈칸 넣기</button>
-        <button type="button" class="hot" data-a="fSplit"${dis || pn}>🔪 분할</button><button type="button" class="del" data-a="fScDel" data-v="${i}"${dis || pn}>❌ 삭제</button><button type="button" class="mv" data-a="fMove" data-v="-1"${dis || pn || !i ? ' disabled' : ''}>◀ ${i + 1}번<br>앞으로</button><button type="button" class="mv" data-a="fMove" data-v="1"${dis || pn || i >= sc.length - 1 ? ' disabled' : ''}>${i + 1}번 ▶<br>뒤로</button></div>
-      <div class="row tlSub"><button class="btn sm ghost" data-a="tlUndo"${T.undo.length ? '' : ' disabled'}>↩ 되돌리기</button><button class="btn sm ghost" data-a="tlRedo"${T.redo.length ? '' : ' disabled'}>↪</button><button class="btn sm ghost" data-a="tlZoom" data-v="fill:0">🔍 ${T.pps.fill > 20 ? '작게' : '크게'}</button><span class="muted" id="fStat">${fmt(t)} · ${i + 1}번 ${fmt0(c.s)}~${fmt0(c.e)}</span></div>
+      ${ov > .05 ? `<div class="ovNote">⚠️ 장면이 노래보다 <b>${ov.toFixed(1)}초</b> 길어요 · 🎵 노래 끝 뒤 장면을 ❌ 삭제하거나 줄여서 맞춰 주세요</div>` : ''}
+      <div class="fStat muted" id="fStat">${fmt(t)} · ${i + 1}번 ${fmt0(c.s)}~${fmt0(c.e)}</div>
       ${tlHTML('fill')}
+      <div class="navRow"><button type="button" data-a="tlUndo"${T.undo.length ? '' : ' disabled'}>↩</button><button type="button" data-a="tlRedo"${T.redo.length ? '' : ' disabled'}>↪</button>${[[-1, '◀◀1'], [-.1, '◀.1'], [.1, '.1▶'], [1, '1▶▶']].map(a => `<button type="button" class="nb" data-a="fNud" data-v="${a[0]}">${a[1]}</button>`).join('')}<button type="button" data-a="tlZoom" data-v="fill:0">🔍</button></div>
+      <div class="cutRow">
+        <button type="button" data-a="fCut"${dis}>✂️ 여기서 끝</button><button type="button" data-a="fPrev"${dis}>➡️ 앞 여기까지</button><button type="button" data-a="fNextHere"${dis}>⬅️ 뒤 여기부터</button><button type="button" data-a="fBlank"${dis}>⬜ 빈칸</button></div>
+      <div class="cutRow c3">
+        <button type="button" data-a="fSplit"${dis || pn}>🔪 분할</button><button type="button" class="del" data-a="fScDel" data-v="${i}"${dis || pn}>❌ 삭제</button>${clip ? `<button type="button" class="paste" data-a="fPaste"${dis}>📋 붙여넣기 <small>(${clip.no}번)</small></button>` : `<button type="button" data-a="fCopy" data-v="${i}">📄 복사</button>`}</div>
+      <div class="cutRow">
+        <button type="button" data-a="fMoveTo" data-v="first"${dis || pn || !i ? ' disabled' : ''}>⏮ 맨 앞</button><button type="button" data-a="fMove" data-v="-1"${dis || pn || !i ? ' disabled' : ''}>◀ 앞으로</button><button type="button" data-a="fMove" data-v="1"${dis || pn || i >= last ? ' disabled' : ''}>뒤로 ▶</button><button type="button" data-a="fMoveTo" data-v="last"${dis || pn || i >= last ? ' disabled' : ''}>맨 뒤 ⏭</button></div>
+      ${clip ? `<div class="clipNote muted">📋 ${clip.no}번 장면을 복사해 뒀어요 · 커서를 넣을 곳에 두고 「📋 붙여넣기」 · <button type="button" class="lnk" data-a="fClipOff">복사 취소</button></div>` : ''}
       <div class="fsc">
         <div class="hd"><b>장면 ${i + 1}</b>${c.pin ? ' <span class="cpd pin">🔒 고정</span>' : ''} <span class="muted">${fmt(c.s)} ~ ${fmt(c.e)} · ${(c.e - c.s).toFixed(1)}초</span>${c.kind === 'video' && (c.e - c.s) > 8.3 ? ' <span class="cpd">⚠️ 8초 넘음 → 영상이 다시 반복돼요</span>' : ''}</div>
         <div class="ly">🎤 ${lyr.length ? esc(lyr.join(' / ')) : '<span class="muted">(반주)</span>'}</div>
@@ -114,7 +129,7 @@
   function fillAct(a, v, el) {
     const p = P(), s = S(), t = now();
     switch (a) {
-      case 'fNud': return s.player.seek(clamp(t + +v, 0, dur()));
+      case 'fNud': return s.player.seek(clamp(t + +v, 0, total()));
       case 'fKeep': T.keep = T.keep === 'stay' ? 'follow' : 'stay'; return refreshView();
       case 'fCut': { if (p.locked) return; const i = sceneIdx(t), c = p.scenes[i]; if (!p.scenes[i + 1]) return U().toast('마지막 장면은 노래 끝까지예요'); if (t - c.s < .3) return U().toast('커서를 장면 안쪽으로 옮겨 주세요'); snap(); setBoundary(i + 1, t, T.keep); T.fsel = i; changed(); return U().toast(`✂️ 장면 ${i + 1} 여기서 끝`); }
       case 'fPrev': { if (p.locked) return; const i = sceneIdx(t); if (i < 1) return U().toast('첫 장면이에요'); snap(); setBoundary(i, t, T.keep); T.fsel = i - 1; changed(); return U().toast(`➡️ 장면 ${i} 을(를) 여기까지 늘렸어요`); }
@@ -130,6 +145,21 @@
         p.scenes.forEach(o => { if (o.reuse != null && o.reuse > i) o.reuse++; }); if (p.cpNext > i) p.cpNext++;
         p.scenes.splice(i + 1, 0, n); T.fsel = i + 1; changed(); return U().toast(`🔪 장면 ${i + 1}을(를) 둘로 나눴어요 · 뒤 칸은 ${i + 2}번`); }
       case 'fPrevSc': { const k = (T.fsel != null ? T.fsel : sceneIdx(t)) - 1; if (k < 0) return U().toast('첫 장면이에요'); const c = p.scenes[k]; T.fsel = k; refreshView(); return s.player.play(c.s, c.e - .02); }
+      case 'fCopy': { const c = p.scenes[+v]; if (!c) return; T.clip = Object.assign(JSON.parse(JSON.stringify(c)), { no: +v + 1 }); refreshView(); return U().toast(`📄 장면 ${+v + 1}을(를) 복사했어요 · 커서를 넣을 곳에 두고 📋 붙여넣기`, 3500); }
+      case 'fClipOff': T.clip = null; return refreshView();
+      case 'fPaste': { if (p.locked || !T.clip) return; const cl = T.clip, len = Math.max(.3, cl.e - cl.s); let i = sceneIdx(t), c = p.scenes[i], at;
+        if (t - c.s < .3) at = i; else if (c.e - t < .3) at = i + 1; else at = null;
+        if (at == null && c.pin) return U().toast(`🔒 ${i + 1}번이 고정돼 있어요 · 장면 사이로 커서를 옮기거나 고정을 풀어 주세요`, 3500);
+        snap(); let pos;
+        if (at == null) { const rest = Object.assign({}, c, { id: 'r' + Date.now().toString(36), s: t, off: +((c.off || 0) + (t - c.s) * (c.speed || 1)).toFixed(2), pin: false }); c.e = t; p.scenes.splice(i + 1, 0, rest); p.scenes.forEach(o => { if (o.reuse != null && o.reuse > i) o.reuse++; }); at = i + 1; pos = t; }
+        else pos = at < p.scenes.length ? p.scenes[at].s : p.scenes[p.scenes.length - 1].e;
+        const n = Object.assign({}, cl, { id: 'c' + Date.now().toString(36), s: +pos.toFixed(2), e: +(pos + len).toFixed(2), pin: false, reuse: null, auto: false, cp: 0 }); delete n.no;
+        p.scenes.forEach(o => { if (o.reuse != null && o.reuse >= at) o.reuse++; }); if (p.cpNext >= at) p.cpNext++;
+        shiftFrom(p, at, len); p.scenes.splice(at, 0, n); T.fsel = at; changed(); s.player.seek(n.s + .05);
+        return U().toast(`📋 ${cl.no}번 장면을 ${at + 1}번 자리에 넣었어요 · 뒤 장면은 ${len.toFixed(1)}초씩 밀렸어요`, 4000); }
+      case 'fMoveTo': { if (p.locked) return; const i = T.fsel != null ? clamp(T.fsel, 0, p.scenes.length - 1) : sceneIdx(t), to = v === 'first' ? 0 : p.scenes.length - 1; if (i === to) return;
+        const a0 = Math.min(i, to), b0 = Math.max(i, to); for (let k = a0; k <= b0; k++) if (p.scenes[k].pin) return U().toast(`🔒 ${k + 1}번이 고정돼 있어서 옮길 수 없어요`, 3500);
+        snap(); reorder(p, i, to); T.fsel = to; changed(); s.player.seek(p.scenes[to].s + .05); return U().toast(`↔ ${i + 1}번 그림을 ${v === 'first' ? '맨 앞(1번)' : `맨 뒤(${to + 1}번)`}으로 옮겼어요`); }
       case 'fPin': { const i = +v, c = p.scenes[i]; if (!c) return; snap(); c.pin = !c.pin; changed(); return U().toast(c.pin ? `🔒 장면 ${i + 1} 고정 · 풀기 전까지 그림 · 시간이 안 바뀌어요` : `🔓 장면 ${i + 1} 고정을 풀었어요`); }
       case 'fBlank': return U().sheet('⬜ 빈칸 넣기', `<p class="muted">지금 위치(${fmt(t)})에 빈칸을 넣어요. 나중에 그림을 넣거나 검은 화면으로 둬요.</p><div class="chips">${[1, 2, 3, 4, 6, 8].map(n => chip('fBlankGo', n, false, n + '초')).join('')}</div>`);
       case 'fBlankGo': { U().sheetClose(); snap(); const i = sceneIdx(t), c = p.scenes[i], len = +v, oe = c.e; if (t - c.s < .2) return;
@@ -377,8 +407,8 @@
   function afterRender() { const p = P(); if (!p) return; if (p.step === 3) tlFit('fill'); if (p.step === 5) tlFit('edit'); }
   document.addEventListener('click', e => { const b = e.target.closest('[data-tl]'); if (!b) return; const v = b.closest('.tlv'); if (!v || !P()) return; e.stopPropagation(); tapBlock(v.classList.contains('fill') ? 'fill' : 'edit', b.dataset.tl); }, true);
   g.addEventListener('resize', () => afterRender());
-  const NAMES = new Set(['tlUndo', 'tlRedo', 'tlZoom', 'fNud', 'fKeep', 'fCut', 'fPrev', 'fBlank', 'fBlankGo', 'fTapGo', 'fTap', 'fTapUndo', 'fTapStop', 'fPlay', 'fNext', 'fLyTap', 'fSnap', 'fNextHere', 'fMove', 'fPin', 'fSplit', 'fPrevSc',
+  const NAMES = new Set(['tlUndo', 'tlRedo', 'tlZoom', 'fNud', 'fKeep', 'fCut', 'fPrev', 'fBlank', 'fBlankGo', 'fTapGo', 'fTap', 'fTapUndo', 'fTapStop', 'fPlay', 'fNext', 'fLyTap', 'fSnap', 'fNextHere', 'fMove', 'fPin', 'fSplit', 'fPrevSc', 'fCopy', 'fClipOff', 'fPaste', 'fMoveTo',
     'thSheet', 'enSheet', 'thOn', 'thDur', 'thSrc', 'thFile', 'thPos', 'thCol', 'thFont', 'thSave', 'enOn', 'enDur', 'enLogo',
     'edAdd', 'adPut', 'adSplit', 'adLib', 'edSplit', 'edTrim', 'trB', 'trCur', 'trOff', 'fKeep2', 'edDel', 'fScDel', 'edCap', 'capPick', 'capJoin', 'capSplit', 'edAudio', 'auFi', 'auCut', 'auCutA', 'auCutB', 'edFx', 'edEfx', 'edStk', 'edSfx', 'edMore', 'mSpeed', 'mFit', 'mZoom', 'mPos', 'mFi', 'mFo', 'mFreeze', 'mFlip', 'mMove', 'mDup']);
-  MV.TL = { has: a => NAMES.has(a), reSheet, fillPart, editPart, act, change, onTime, afterRender, refreshView, reset() { T.undo = []; T.redo = []; T.fsel = null; T.esel = null; T.tapMode = false; T.cutA = null; } };
+  MV.TL = { has: a => NAMES.has(a), reSheet, fillPart, editPart, act, change, onTime, afterRender, refreshView, reset() { T.undo = []; T.redo = []; T.clip = null; T.wasOver = false; T.fsel = null; T.esel = null; T.tapMode = false; T.cutA = null; } };
 })(window);

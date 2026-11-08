@@ -435,7 +435,7 @@
   }
   BODY[3] = function () {
     const p = S.p;
-    return `<div class="pvStick" data-pv></div>
+    return `<div class="pvStick s3" data-pv></div>
       <div data-sub="① 채우기">${MV.TL.fillPart()}</div>
       <div data-sub="② 음악">${capPart(p)}</div>
       <div data-sub="③ 잠금">${lockPart(p)}</div>`;
@@ -714,6 +714,7 @@
   }
   async function doExport() {
     const p = S.p; if (S.busy) return; if (!p.scenes.some(s => s.file)) return toast('장면이 비어 있어요');
+    { const D = p.song.dur, nOv = p.scenes.filter(s => s.s >= D - .01).length; if (p.scenes[p.scenes.length - 1].e > D + .05 && !confirm(`⚠️ 장면이 노래보다 ${(p.scenes[p.scenes.length - 1].e - D).toFixed(1)}초 길어요.\n노래 끝 뒤 장면${nOv ? ` ${nOv}개` : ''}는 빠지고 저장돼요. 그대로 저장할까요?`)) return; }
     S.busy = true; S.player.pause(); const box = $('expBox'), btn = $('expBtn'), ctl = {};
     btn.disabled = true; box.innerHTML = `<div class="prog"><i id="expBar"></i></div><p class="muted" id="expMsg">준비 중…</p><button class="btn sm ghost" id="expStop">■ 그만</button>`;
     $('expStop').onclick = () => { ctl.aborted = true; };

@@ -239,8 +239,8 @@ header.top button{border:0;border-radius:10px;padding:6px 10px;background:#fffff
 /* 채우기 버튼 (BK쇼츠 모양) */
 .nud{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0}
 .nud button{border:1.5px solid var(--line);background:#fff;border-radius:14px;padding:10px 2px;font-weight:900;color:var(--p);font-size:.86rem}
-.cutRow{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
-.cutRow button{border:0;border-radius:14px;background:#ede9fe;color:var(--p);font-weight:900;font-size:.74rem;padding:8px 2px;line-height:1.25;min-height:54px}
+.cutRow{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:4px 0}
+.cutRow button{border:0;border-radius:10px;background:#ede9fe;color:var(--p);font-weight:900;font-size:.72rem;padding:4px 2px;line-height:1.2;min-height:34px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cutRow button.hot{background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff}
 .cutRow button.keep{background:#fff;border:2px solid var(--p)}
 .cutRow button:disabled{opacity:.4}
@@ -302,9 +302,20 @@ header.top button{border:0;border-radius:10px;padding:6px 10px;background:#fffff
 
 .gemSong{background:#fdf4ff;border:2px solid #f0abfc;border-radius:14px;padding:10px 12px;margin:10px 0}.gemSong b{color:#a21caf}.gemSong .btn{width:100%}
 .btn.red{color:#dc2626;border-color:#fecaca}
-.cutRow button.mv{background:#fff7ed;color:#c2410c}
 .btn.pinBtn{background:#ecfdf5;color:#047857;border:1.5px solid #6ee7b7}.btn.pinOn{background:#047857;color:#fff}
 .cpd.pin{background:#d1fae5;color:#047857}
-.cutRow button.del{background:#fef2f2;color:#dc2626}
 .row.three{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.row.three .btn{width:100%;padding-left:2px;padding-right:2px}
 .btn.hotSm{background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff}.btn.keepSm{border:2px solid var(--p);color:var(--p)}
+.cutRow.c3{grid-template-columns:repeat(3,1fr)}
+.cutRow button.del{color:#dc2626}
+.cutRow button.paste{background:#7c3aed;color:#fff}.cutRow button small{font-size:.66rem;opacity:.85}
+.navRow{display:grid;grid-template-columns:.8fr .8fr 1fr 1fr 1fr 1fr .8fr;gap:4px;margin:4px 0}
+.navRow button{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:5px 0;font-weight:900;color:var(--p);font-size:.78rem;min-height:32px}
+.navRow button:disabled{opacity:.35}
+.fStat{font-size:.72rem;text-align:right;margin:2px 2px -4px}
+.pvStick.s3 .pv canvas{max-height:21vh}.pvStick.s3 .pv.v916 canvas{height:21vh}.pvStick.s3 .tp{margin:2px 0}
+.tlv.fill{margin:4px 0}
+.tlEnd{position:absolute;top:-16px;bottom:0;width:0;border-left:3px dashed #ef4444;z-index:4;pointer-events:none}.tlEnd b{position:absolute;top:0;left:3px;font-size:.62rem;color:#fff;background:#ef4444;border-radius:5px;padding:0 4px;white-space:nowrap}
+.tb.over{opacity:.55;filter:grayscale(.4)}
+.ovNote{background:#fef2f2;border:1.5px solid #fecaca;color:#b91c1c;border-radius:10px;padding:5px 8px;font-size:.78rem;margin:4px 0}
+.clipNote{font-size:.75rem;margin:2px 0}.lnk{border:0;background:none;color:var(--p);text-decoration:underline;font-weight:800;padding:0}

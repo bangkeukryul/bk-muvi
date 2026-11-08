@@ -156,7 +156,7 @@
     if (p.fx.film === 'vintage' || p.fx.film === 'cinema') { const gr = x.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .35, W / 2, H / 2, Math.max(W, H) * .72); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.45)'); x.fillStyle = gr; x.fillRect(0, 0, W, H); }
     const dur = (p.song && p.song.dur) || S[S.length - 1].e;
     if (F) { for (const e of act) if (!PRE[e.k]) F.overlay(x, W, H, e, t); for (const k of (p.stk || [])) if (on(k, t)) F.drawSticker(x, W, H, k, t); }
-    const TH = p.thumb && p.thumb.on && t < (p.thumb.dur || 0), EN = p.endc && p.endc.on && t > dur - (p.endc.dur || 0);
+    const TH = p.thumb && p.thumb.on && t < (p.thumb.dur || 0), EN = p.endc && p.endc.on && t > dur - (p.endc.dur || 0) && t <= dur + .01;
     if (TH) drawThumb(x, W, H, p, clamp((p.thumb.dur - t) / .35, 0, 1));
     else if (EN) drawEnd(x, W, H, p, (t - (dur - p.endc.dur)) / .6);
     else drawCaps(x, W, H, p, t, CL);
@@ -219,20 +219,24 @@
       P.refresh(); await P.seek(P.audio.currentTime || 0);
     };
     P.refresh = function () { P.CL = P.p ? capLines(P.p) : null; };
-    P.time = () => P.p ? MV.song2tl(P.p, P.audio.currentTime || 0) : (P.audio.currentTime || 0);
+    P.total = () => { const p = P.p; if (!p) return 0; const D = (p.song && p.song.dur) || 0, S = p.scenes || [], L = S.length ? S[S.length - 1].e : 0; return Math.max(D, L); };
+    P.vt = null; P.vplay = null;
+    P.time = () => P.vt != null ? (P.vplay ? Math.min(P.total(), P.vplay.t0 + (performance.now() - P.vplay.at) / 1000) : P.vt) : P.p ? MV.song2tl(P.p, P.audio.currentTime || 0) : (P.audio.currentTime || 0);
     P.segFix = function () { const p = P.p; if (!p || !p.song || !p.song.segs) return; const x = P.audio.currentTime, S = MV.segs(p); for (let k = 0; k < S.length; k++) { const [a, b] = S[k]; if (x < a - .02) { P.audio.currentTime = a; return; } if (x < b - .03) return; if (k === S.length - 1) { P.audio.pause(); return; } } };
     P.sfx = function (k) { try { const F = g.BKFX; if (!F) return; const C = P.ac || (P.ac = new (g.AudioContext || g.webkitAudioContext)()); if (C.state === 'suspended') C.resume(); const gn = C.createGain(); gn.gain.value = (P.p && P.p.fx.sfxVol) || .8; gn.connect(C.destination); F.sfx(C, gn, k, C.currentTime + .02); } catch (e) { /* 소리 없음 */ } };
-    P.playing = () => !P.audio.paused;
+    P.playing = () => !P.audio.paused || !!P.vplay;
     P.syncVideos = function (t, play) {
       const p = P.p, i = MV.sceneAt(p, t), S = p.scenes;
       for (const m of MEDIA.values()) if (m.vid && !m.p) { const pv = S[i - 1] && t < S[i].s + (p.fx.tdur || .6) ? S[i - 1] : null, owner = [pv, S[i], S[i + 1]].find(s => s && s.file === m.id); if (!owner) { if (!m.vid.paused) m.vid.pause(); continue; }
         const want = srcTime(owner, m, t); if (owner === S[i + 1] && t < owner.s) { if (!m.vid.paused) m.vid.pause(); if (Math.abs(m.vid.currentTime - want) > .2) m.vid.currentTime = want; continue; }
         if (play) { if (Math.abs(m.vid.currentTime - want) > .35) m.vid.currentTime = want; if (m.vid.paused) m.vid.play().catch(() => {}); } else { if (!m.vid.paused) m.vid.pause(); if (Math.abs(m.vid.currentTime - want) > .03) m.vid.currentTime = want; } }
     };
-    P.draw = function () { if (!P.p) return; const t = P.time(); drawFrame(P.x, P.cv.width, P.cv.height, P.p, t, P.CL); };
+    P.draw = function () { if (!P.p) return; const t = P.time(); drawFrame(P.x, P.cv.width, P.cv.height, P.p, t, P.CL);
+      const D = (P.p.song && P.p.song.dur) || 0; if (t > D + .01) { const x = P.x, W = P.cv.width; x.save(); x.fillStyle = 'rgba(220,38,38,.88)'; x.fillRect(0, 0, W, 30); x.fillStyle = '#fff'; x.font = 'bold 15px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('🎵 노래 끝 뒤 장면 (저장할 때 빠져요)', W / 2, 15); x.restore(); } };
     P.loop = function () {
       P.raf = 0; if (!P.p) return; if (P.playing()) P.segFix(); const t = P.time(), i = MV.sceneAt(P.p, t);
       if (i !== P.cur) { P.cur = i; near(P.p, i); }
+      if (P.vplay && t >= P.total() - .01) { P.pause(); }
       if (P.stopAt != null && t >= P.stopAt) { P.pause(); P.stopAt = null; }
       if (P.playing() && P.lastT != null && t > P.lastT && t - P.lastT < .5) for (const z of (P.p.sfx || [])) if (z.at > P.lastT && z.at <= t) P.sfx(z.k);
       P.lastT = t;
@@ -241,20 +245,24 @@
     };
     P.play = async function (from, to) {
       if (from != null) await P.seek(from); P.stopAt = to == null ? null : to;
-      try { await P.audio.play(); } catch (e) { /* 누르면 재생 */ }
+      if (P.vt != null) { if (P.vt >= P.total() - .05) await P.seek(0); }
+      if (P.vt != null) P.vplay = { t0: P.vt, at: performance.now() };
+      else { try { await P.audio.play(); } catch (e) { /* 누르면 재생 */ } }
       if (!P.raf) P.raf = requestAnimationFrame(P.loop);
     };
-    P.pause = function () { P.audio.pause(); if (!P.p) return; P.syncVideos(P.time(), false); P.draw(); P.onTime && P.onTime(P.time()); };
+    P.pause = function () { if (P.vplay) { P.vt = P.time(); P.vplay = null; if (P.raf) { cancelAnimationFrame(P.raf); P.raf = 0; } } P.audio.pause(); if (!P.p) return; P.syncVideos(P.time(), false); P.draw(); P.onTime && P.onTime(P.time()); };
     P.toggle = () => P.playing() ? P.pause() : P.play();
     P.seek = async function (t) {
-      if (!P.p) return; t = clamp(t, 0, (P.p.song && P.p.song.dur) || 0); try { P.audio.currentTime = MV.tl2song(P.p, t); } catch (e) { /* 아직 */ } loadCards(P.p);
+      if (!P.p) return; const D = (P.p.song && P.p.song.dur) || 0; t = clamp(t, 0, P.total()); const was = !!P.vplay;
+      if (t > D - .01 && P.total() > D + .05) { P.vt = t; P.vplay = was ? { t0: t, at: performance.now() } : null; P.audio.pause(); try { P.audio.currentTime = MV.tl2song(P.p, D); } catch (e) { /* 아직 */ } }
+      else { P.vt = null; P.vplay = null; try { P.audio.currentTime = MV.tl2song(P.p, t); } catch (e) { /* 아직 */ } } loadCards(P.p);
       const i = MV.sceneAt(P.p, t); P.cur = i; await near(P.p, i);
       for (const s of [P.p.scenes[i - 1], P.p.scenes[i], P.p.scenes[i + 1]]) { const m = s && s.file && get(s.file); if (m && m.vid) await MV.seekVideo(m.vid, srcTime(s, m, Math.max(t, s.s))); }
       P.draw(); P.onTime && P.onTime(t);
     };
-    P.stop = function () { P.audio.pause(); if (P.raf) cancelAnimationFrame(P.raf); P.raf = 0; };
-    P.audio.addEventListener('pause', () => { if (P.raf) { cancelAnimationFrame(P.raf); P.raf = 0; } P.onTime && P.onTime(P.time()); });
-    P.audio.addEventListener('ended', () => P.pause());
+    P.stop = function () { P.vplay = null; P.audio.pause(); if (P.raf) cancelAnimationFrame(P.raf); P.raf = 0; };
+    P.audio.addEventListener('pause', () => { if (P.vplay) return; if (P.raf) { cancelAnimationFrame(P.raf); P.raf = 0; } P.onTime && P.onTime(P.time()); });
+    P.audio.addEventListener('ended', () => { const p = P.p, D = p && p.song ? p.song.dur : 0; if (p && P.total() > D + .05 && (P.stopAt == null || P.stopAt > D)) { P.vt = D; P.vplay = { t0: D, at: performance.now() }; if (!P.raf) P.raf = requestAnimationFrame(P.loop); return; } P.pause(); });
   }
 
   /* ═════════ MP4 만들기 ═════════ */

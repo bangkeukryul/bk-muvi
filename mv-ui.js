@@ -320,10 +320,10 @@
     String(t || '').replace(/\r/g, '').split('\n').forEach(l => {
       const x = l.replace(/\*\*|__|`/g, '').trim(); if (!x) return;
       const rr = x.match(/^[-#•\s]*(?:S|장면|scene|씬)\s*(\d{1,3})\b.*?(?:=|→|:)\s*(?:S|장면)\s*(\d{1,3})\s*(?:번)?\s*(?:그림)?\s*(?:다시|재사용|반복|같은)/i);
-      if (rr && S2[+rr[1] - 1] && S2[+rr[2] - 1] && +rr[1] !== +rr[2]) { const sc = S2[+rr[1] - 1]; sc.reuse = +rr[2] - 1; sc.prompt = `♻ 장면 ${rr[2]} 그림 다시 쓰기`; n++; want = -1; return; }
+      if (rr && x.length <= 40 && S2[+rr[1] - 1] && S2[+rr[2] - 1] && +rr[1] !== +rr[2]) { const sc = S2[+rr[1] - 1]; sc.reuse = +rr[2] - 1; sc.prompt = `♻ 장면 ${rr[2]} 그림 다시 쓰기`; n++; want = -1; return; }
       const m = x.match(/^[-#•]*\s*(?:S|장면|scene|씬)\s*(\d{1,3})\s*(?:\([^)]*\))?\s*(?:[.:)\]：\-—]\s*(.*))?$/i) || x.match(/^(\d{1,3})\s*[.)]\s*(.+)$/);
-      if (m && S2[+m[1] - 1]) { const r = (m[2] || '').replace(/^가사\s*[:：].*$/, '').trim(); if (r.length > 3) { S2[+m[1] - 1].prompt = r; S2[+m[1] - 1].reuse = null; n++; want = -1; } else want = +m[1] - 1; return; }
-      if (want >= 0 && x.length > 3 && !/^가사\s*[:：]/.test(x)) { const rm = x.match(/(?:장면|S)\s*(\d{1,3})\s*(?:번)?\s*(?:그림)?\s*(?:을|를)?\s*(?:다시|재사용|반복|그대로)/); if (rm && S2[+rm[1] - 1] && +rm[1] - 1 !== want) { S2[want].reuse = +rm[1] - 1; S2[want].prompt = `♻ 장면 ${rm[1]} 그림 다시 쓰기`; } else { S2[want].prompt = x.replace(/^(설명|장면)\s*[:：]\s*/, ''); S2[want].reuse = null; } n++; want = -1; }
+      if (m && S2[+m[1] - 1]) { const r = (m[2] || '').replace(/^가사\s*[:：].*$/, '').trim(); if (r.length > 3) { S2[+m[1] - 1].prompt = r; S2[+m[1] - 1].prompt0 = r; S2[+m[1] - 1].reuse = null; n++; want = -1; } else want = +m[1] - 1; return; }
+      if (want >= 0 && x.length > 3 && !/^가사\s*[:：]/.test(x)) { const rm = x.length <= 30 && x.match(/^[♻\s(]*(?:장면|S)\s*(\d{1,3})\s*(?:번)?\s*(?:그림)?\s*(?:을|를)?\s*(?:다시\s*(?:쓰기|사용)|재사용|반복\s*사용|그대로\s*쓰기)[.)\s]*$/); if (rm && S2[+rm[1] - 1] && +rm[1] - 1 !== want) { S2[want].reuse = +rm[1] - 1; S2[want].prompt = `♻ 장면 ${rm[1]} 그림 다시 쓰기`; } else { S2[want].prompt = x.replace(/^(설명|장면)\s*[:：]\s*/, ''); S2[want].prompt0 = S2[want].prompt; S2[want].reuse = null; } n++; want = -1; }
     });
     applyReuse();
     return n;
@@ -369,7 +369,7 @@
       </details>
       <details class="grp" open><summary>${vid ? '🎬 ④ Flow에서 차례로 만들기' : '🖼 ④ ChatGPT 그림 방에서 차례로 만들기'}</summary>
         <div class="nextCp"><div class="muted">지금 복사할 장면 <b>${k} / ${sc.length}</b> · 복사함 ${sc.filter(s2 => s2.cp).length}개</div>
-          <button class="btn main big" data-a="cpNext">📋 장면 ${k} 글 복사</button>
+          ${(() => { let j = k - 1; const sk = []; while (sc[j] && sc[j].reuse != null && j < sc.length - 1) { sk.push(j + 1); j++; } return `<button class="btn main big" data-a="cpNext">📋 장면 ${j + 1} 글 복사</button>${sk.length ? `<p class="muted" style="margin:4px 0 0">♻ ${sk.join(' · ')}번은 앞 그림을 다시 써서 건너뛰어요 (그리고 싶으면 그 칸의 「♻ 풀기」)</p>` : ''}`; })()}
           <div class="row"><button class="btn sm ghost" data-a="cpBack">◀ 앞 장면</button>${vid ? '<button class="btn sm" data-a="flow">🌊 Flow 열기</button>' : '<button class="btn sm" data-a="gptOpen">💬 ChatGPT 열기 (처음 한 번)</button>'}<button class="btn sm ghost" data-a="cpReset">↺ 처음부터</button></div>
           ${vid ? '' : `<p class="muted" style="margin:6px 0 0">🔁 같은 그림 방으로 돌아가려면 휴대폰 <b>최근 앱 버튼(|||) → ChatGPT</b>. 「ChatGPT 열기」를 또 누르면 새 방이 열릴 수 있어요.</p>
           <div class="row">${lk.heroThumb ? `<button class="btn sm" data-a="scShare">📤 장면 ${k} 글 + 주인공 사진 같이 보내기</button>` : ''}<button class="btn sm ghost" data-a="gemDraw">🆘 ChatGPT 한도일 때만: Gemini로 그리기</button></div>`}
@@ -382,7 +382,7 @@
         <div class="grid">${sc.map((s2, i) => { const ly = MV.sceneLines(p, s2); return `
           <div class="sc${s2.ok ? ' ok' : ''}">
             <button class="th${p.ratio === '9:16' ? ' v916' : ''}" data-a="scPlay" data-v="${i}">${s2.thumb ? `<img src="${s2.thumb}" alt="">` : (s2.file ? '🎞' : '비어 있음')}<span class="k">${i + 1}</span></button>
-            <div class="bd"><div class="hd">장면 ${i + 1} · ${fmt0(s2.s)}~${fmt0(s2.e)}${s2.reuse != null ? ` <span class="cpd re">♻ ${s2.reuse + 1}번 그림</span>` : ''}${s2.cp ? ' <span class="cpd">📋</span>' : ''}${s2.file ? ' <span class="cpd ok">✅</span>' : ''}</div>
+            <div class="bd"><div class="hd">장면 ${i + 1} · ${fmt0(s2.s)}~${fmt0(s2.e)}${s2.reuse != null ? ` <span class="cpd re">♻ ${s2.reuse + 1}번 그림</span> <button class="btn sm ghost" data-a="reuseOff" data-v="${i}">♻ 풀기</button>` : ''}${s2.cp ? ' <span class="cpd">📋</span>' : ''}${s2.file ? ' <span class="cpd ok">✅</span>' : ''}</div>
               <div class="ly">🎤 ${ly.length ? esc(ly.join(' / ')) : '<span class="muted">(반주)</span>'}</div>
               <div class="pr">✏️ ${s2.prompt ? esc(s2.prompt) : '장면 글 없음 → 가사로 자동'}</div>
               <div class="row"><button class="btn sm main" data-a="scCopy" data-v="${i}">📋 글</button><button class="btn sm" data-a="scPut" data-v="${i}"${dis}>📂 ${s2.file ? '바꾸기' : '넣기'}</button><button class="btn sm" data-a="trayFor" data-v="${i}"${dis}>🗂 서랍</button>${s2.file ? `<button class="btn sm ghost" data-a="scDel" data-v="${i}"${dis}>🗑</button>` : ''}<button class="btn sm" data-a="scPlay" data-v="${i}">▶</button><button class="btn sm ghost" data-a="scEdit" data-v="${i}">✏️</button></div>
@@ -789,8 +789,11 @@
       case 'kr': p.look.kr = v === '1'; save(); return render();
       case 'heroCopy': p.look.heroTab = 'make'; save(); return copyOpen(heroText(), GPT_URL, '📋 주인공 그림 글을 복사했어요 · Flow(이미지)에 붙여넣기');
       case 'planPaste': { let t = ''; try { t = await navigator.clipboard.readText(); } catch (e) { /* 직접 */ } if (!t) { toast('칸을 길게 눌러 「붙여넣기」 후 「✅ 장면 글 넣기」를 눌러 주세요', 4000); return $('fPlan').focus(); } $('fPlan').value = t; const n = parsePlan(t); save(); render(); return toast(n ? `✅ 장면 글 ${n}개를 넣었어요` : '⚠️ 장면 글(S1: …)을 못 찾았어요 · Gemini 답을 통째로 복사했는지 봐 주세요', 4000); }
-      case 'cpNext': { let k = clamp(p.cpNext || 0, 0, p.scenes.length - 1); while (p.scenes[k] && p.scenes[k].reuse != null && k < p.scenes.length - 1) k++; p.scenes[k].cp = 1; let nx = Math.min(k + 1, p.scenes.length - 1); while (p.scenes[nx] && p.scenes[nx].reuse != null && nx < p.scenes.length - 1) nx++; p.cpNext = nx; save(); await copyOpen(sceneText(k), null, `📋 장면 ${k + 1} 글 복사 · ${p.mode === 'image' ? '최근 앱(|||) → ChatGPT 그림 방에 붙여넣기' : 'Flow에 붙여넣기'}${k + 1 >= p.scenes.length ? ' · 마지막 장면이에요' : ''}`); return render(); }
-      case 'cpBack': p.cpNext = Math.max(0, (p.cpNext || 0) - 1); save(); return render();
+      case 'cpNext': { const N = p.scenes.length; let k = clamp(p.cpNext || 0, 0, N - 1); const skipped = []; while (p.scenes[k] && p.scenes[k].reuse != null && k < N - 1) { skipped.push(k + 1); k++; }
+        p.scenes[k].cp = 1; let nx = Math.min(k + 1, N - 1); while (p.scenes[nx] && p.scenes[nx].reuse != null && nx < N - 1) nx++; p.cpNext = k + 1 >= N ? k : nx; save();
+        await copyOpen(sceneText(k), null, `📋 장면 ${k + 1} 글 복사${skipped.length ? ` (${skipped.join(' · ')}번은 ♻ 다시 쓰기라 건너뜀)` : ''} · ${p.mode === 'image' ? '최근 앱(|||) → ChatGPT 그림 방에 붙여넣기' : 'Flow에 붙여넣기'}${k + 1 >= N ? ' · 마지막 장면이에요' : ''}`); return render(); }
+      case 'cpBack': { let k = Math.max(0, (p.cpNext || 0) - 1); while (k > 0 && p.scenes[k].reuse != null) k--; p.cpNext = k; save(); return render(); }
+      case 'reuseOff': { const x = p.scenes[+v]; if (!x) return; if (x.auto && x.file) { x.file = null; x.kind = null; x.thumb = ''; x.name = ''; } x.reuse = null; x.auto = false; x.prompt = x.prompt0 || ''; save(); render(); return toast(`♻ 풀었어요 · 장면 ${+v + 1}도 새로 그려요`); }
       case 'cpReset': if (confirm('복사 표시를 지우고 장면 1부터 다시 할까요?')) { p.scenes.forEach(s => { s.cp = 0; }); p.cpNext = 0; save(); render(); } return;
       case 'scCopy': p.scenes[+v].cp = 1; p.cpNext = Math.min(+v + 1, p.scenes.length - 1); save(); if (S.win == null) setTimeout(render, 50); return copyOpen(sceneText(+v), null, `📋 장면 ${+v + 1} 글을 복사했어요 · ${p.mode === 'image' ? 'ChatGPT 그림 방' : 'Flow'}에 붙여넣기`);
       case 'scPut': case 'scPut5': { if (a === 'scPut' && p.locked) return toast('🔒 잠겨 있어요'); const [f] = await pickFiles('video/*,image/*'); if (!f) return; await putScene(+v, f); save(); if (a === 'scPut5') editRefresh(); else if (S.win != null) winRender(); else render(); S.player.seek(p.scenes[+v].s + .05); return toast(`📂 장면 ${+v + 1}에 넣었어요 · ▶ 로 들어 보세요`); }

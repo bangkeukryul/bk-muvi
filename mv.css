@@ -144,8 +144,9 @@ header.top button{border:0;border-radius:10px;padding:6px 10px;background:#fffff
 .stBody{background:#fff;border-radius:18px;border:1.5px solid var(--line);padding:12px}
 .stNav{display:flex;gap:8px;margin:14px 0}
 .stNav>*{flex:1}
-.subbar{display:flex;gap:6px;overflow-x:auto;margin:10px 0;padding-bottom:4px}
-.subbar button{flex:none;border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:7px 12px;font-weight:800;font-size:.85rem;color:var(--ink)}
+.subbar{display:flex;gap:6px;overflow-x:auto;margin:10px 0;scrollbar-width:none}
+.subbar::-webkit-scrollbar{display:none}
+.subbar button{flex:1 0 auto;border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:7px 10px;font-weight:800;font-size:.85rem;color:var(--ink)}
 .subbar button.on{background:var(--p);border-color:var(--p);color:#fff}
 .subnext{margin-top:14px;background:#ede9fe;color:var(--p)}
 /* 효과 */
@@ -171,3 +172,7 @@ header.top button{border:0;border-radius:10px;padding:6px 10px;background:#fffff
 .sheetBd{overflow:auto;padding:12px 14px 20px}
 .sheetBd .chips .chip{padding:9px 13px;font-size:.92rem}
 @keyframes sheetUp{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+.nextCp{background:#f5f3ff;border:1.5px solid #ddd6fe;border-radius:14px;padding:10px;margin:8px 0}
+.nextCp .btn.big{margin:6px 0}
+.cpd{font-size:.7rem;background:#ede9fe;color:var(--p);border-radius:6px;padding:0 5px;font-weight:800}
+.cpd.ok{background:#dcfce7;color:#15803d}

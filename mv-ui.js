@@ -210,7 +210,7 @@
     const p = S.p, L = p.lines || [], timed = L.filter(l => l.s != null).length;
     return `
       <div class="field"><label>🏷 뮤비 제목 (노래 제목)</label><input type="text" id="fTitle" value="${esc(p.title)}" placeholder="예: 봄날의 약속"></div>
-      <div class="sub" data-sub="① 노래 파일"><h3>🎵 노래 넣기</h3>
+      <div class="sub" data-sub="① 노래"><h3>🎵 노래 넣기</h3>
         ${p.song ? `<div class="song"><div class="ic">🎧</div><div style="flex:1;min-width:0"><b>${esc(p.song.name)}</b><div class="muted">길이 ${fmt0(p.song.dur)}</div><audio controls preload="none" id="songAu"></audio></div></div>` : '<p class="muted">아직 노래가 없어요.</p>'}
         <div class="row" style="margin-top:8px"><button class="btn main" data-a="pickSong">📂 내 MP3 고르기</button><button class="btn" data-a="musicBox">🎼 BK뮤직 노래함에서</button></div>
         <div id="boxList"></div>
@@ -222,7 +222,7 @@
         <div class="row"><button class="btn main" data-a="lyrApply">✅ 가사 넣기</button><button class="btn" data-a="lyrAI">🤖 Gemini에게 가사 시간 받기</button></div>
         <p class="muted">${L.length ? `가사 ${L.length}줄 들어 있어요${timed ? ` · 시간 맞춘 줄 ${timed}줄` : ''}` : '가사를 넣으면 장면마다 그 시간의 가사가 보여요.'}<br>🤖 버튼: 요청 글이 복사되고 Gemini가 열려요 → ＋로 MP3 올리기 → 붙여넣기 → 보내기 → 받은 답을 위 칸에 붙여넣고 「✅ 가사 넣기」</p>
       </div>
-      <div class="sub" data-sub="③ 화면 모양"><h3>📐 화면 모양</h3>
+      <div class="sub" data-sub="③ 화면"><h3>📐 화면 모양</h3>
         <div class="cards"><button class="card${p.ratio === '16:9' ? ' on' : ''}" data-a="ratio" data-v="16:9"><span class="e">🖥</span>가로 16:9<small>유튜브 뮤직비디오</small></button><button class="card${p.ratio === '9:16' ? ' on' : ''}" data-a="ratio" data-v="9:16"><span class="e">📱</span>세로 9:16<small>쇼츠 · 릴스</small></button></div>
       </div>
       ${nextBtn(2, '✅ 다음 단계로 ▶ 장면 만들기')}`;
@@ -259,26 +259,38 @@
   }
 
   /* ═════════ 2. 장면 ═════════ */
+  const KR = p => !(p.look && p.look.kr === false);
+  const KR_LINE = '등장인물은 모두 한국 사람, 배경은 한국 (한국 거리 · 한국 집 · 한국 자연, 간판과 글씨는 한글).';
   function sceneText(i) {
     const p = S.p, sc = p.scenes[i], ly = MV.sceneLines(p, sc), lk = p.look || {}, vid = p.mode !== 'image';
     const what = sc.prompt || (ly.length ? `가사 「${ly.join(' / ')}」의 감정을 담은 장면` : (i === 0 ? '노래가 시작되는 첫 장면, 분위기를 보여 주는 풍경' : '가사 없이 반주만 나오는 부분, 분위기를 이어 주는 장면'));
-    return [`${lk.style || '실사 시네마틱'} 스타일, ${p.ratio === '9:16' ? '세로 9:16' : '가로 16:9'} 화면.`,
+    return [KR(p) ? KR_LINE : '', `${lk.style || '실사 시네마틱'} 스타일, ${p.ratio === '9:16' ? '세로 9:16' : '가로 16:9'} 화면.`,
       lk.mood ? `전체 분위기: ${lk.mood}.` : '', lk.hero ? `주인공: ${lk.hero} (모든 장면에서 같은 얼굴 · 같은 옷).` : '',
       `장면: ${what}`,
       vid ? `${Math.round(sc.e - sc.s)}초 길이, 카메라가 천천히 움직이는 영화 같은 장면.` : '고화질 한 장의 이미지.',
       '화면에 글자 · 자막 · 로고를 넣지 마세요. 대사나 말소리 없이.'].filter(Boolean).join('\n');
+  }
+  function heroText() {
+    const p = S.p, lk = p.look || {};
+    return [KR(p) ? '한국 사람.' : '', `${lk.style || '실사 시네마틱'} 스타일 인물 사진 한 장.`, `주인공: ${lk.hero || '이 노래의 주인공'}.`, lk.mood ? `분위기: ${lk.mood}.` : '',
+      '얼굴과 옷이 잘 보이는 정면 상반신, 자연스러운 표정.', KR(p) ? '배경은 한국의 자연스러운 장소.' : '', '화면에 글자 · 로고 넣지 않기.'].filter(Boolean).join('\n');
   }
   function planAIText() {
     const p = S.p, lk = p.look || {}, vid = p.mode !== 'image';
     return `[BK뮤비 장면 기획 요청]\n노래 「${p.title || '제목 없음'}」(길이 ${fmt0(p.song.dur)})로 뮤직비디오를 만들려고 해요.\n장면은 ${p.scenes.length}개이고, 장면 하나는 ${vid ? `${p.clipLen}초짜리 영상(구글 Flow)` : '그림 한 장'}이에요.\n` +
       `그림 느낌: ${lk.style || '실사 시네마틱'}${lk.mood ? `\n전체 분위기: ${lk.mood}` : ''}${lk.hero ? `\n주인공: ${lk.hero}` : ''}\n\n` +
       `아래에 장면마다 그 시간에 나오는 가사를 적었어요. 노래 전체가 하나의 이야기처럼 이어지게, 장면마다 ${vid ? 'Flow에 넣을 영상' : '그림 AI에 넣을 그림'} 설명을 한국어 한두 문장으로 써 주세요.\n` +
-      `- 가사의 감정과 맞게 (밝은 부분은 밝게, 슬픈 부분은 차분하게)\n- 같은 주인공 · 같은 옷 · 같은 장소 느낌이 이어지게\n${vid ? '- 카메라 움직임도 넣기 (천천히 다가가기, 옆으로 흐르기 등)\n' : ''}- 화면에 글자 · 자막 · 로고는 넣지 않기\n- 다른 설명 없이 아래 형식으로만 써 주세요:\nS1: (설명)\nS2: (설명)\n\n` +
+      (KR(p) ? '- 모든 장면은 한국 사람 · 한국 배경으로 (한국 거리 · 집 · 자연, 간판은 한글)\n' : '') + `- 가사의 감정과 맞게 (밝은 부분은 밝게, 슬픈 부분은 차분하게)\n- 같은 주인공 · 같은 옷 · 같은 장소 느낌이 이어지게\n${vid ? '- 카메라 움직임도 넣기 (천천히 다가가기, 옆으로 흐르기 등)\n' : ''}- 화면에 글자 · 자막 · 로고는 넣지 않기\n- 다른 설명 없이 아래 형식으로만 써 주세요:\nS1: (설명)\nS2: (설명)\n\n` +
       p.scenes.map((sc, i) => { const ly = MV.sceneLines(p, sc); return `S${i + 1} (${fmt0(sc.s)}~${fmt0(sc.e)}) 가사: ${ly.length ? ly.join(' / ') : (i === 0 ? '(전주)' : '(반주만)')}`; }).join('\n');
   }
   function parsePlan(t) {
-    let n = 0; const S2 = S.p.scenes;
-    String(t || '').split(/\r?\n/).forEach(l => { const m = l.replace(/\*\*/g, '').match(/^\s*[-#]*\s*(?:S|장면\s*)?(\d{1,3})\s*(?:\([^)]*\))?\s*[.:)\]：-]\s*(.+)$/i); if (m && S2[+m[1] - 1] && m[2].trim().length > 3) { S2[+m[1] - 1].prompt = m[2].trim(); n++; } });
+    let n = 0, want = -1; const S2 = S.p.scenes;
+    String(t || '').replace(/\r/g, '').split('\n').forEach(l => {
+      const x = l.replace(/\*\*|__/g, '').trim(); if (!x) return;
+      const m = x.match(/^[-#•]*\s*(?:S|장면|scene|씬)\s*(\d{1,3})\s*(?:\([^)]*\))?\s*(?:[.:)\]：\-—]\s*(.*))?$/i) || x.match(/^(\d{1,3})\s*[.)]\s*(.+)$/);
+      if (m && S2[+m[1] - 1]) { const r = (m[2] || '').replace(/^가사\s*[:：].*$/, '').trim(); if (r.length > 3) { S2[+m[1] - 1].prompt = r; n++; want = -1; } else want = +m[1] - 1; return; }
+      if (want >= 0 && x.length > 3 && !/^가사\s*[:：]/.test(x)) { S2[want].prompt = x.replace(/^(설명|장면)\s*[:：]\s*/, ''); n++; want = -1; }
+    });
     return n;
   }
   BODY[3] = function () {
@@ -286,27 +298,33 @@
     return `<div data-pv></div>
       ${L ? `<div class="note red">🔒 잠겨 있어요 — 장면을 바꾸려면 <button class="btn sm" data-a="unlock">🔓 잠금 풀기</button></div>` : ''}
       <div class="note blue">🎵 ${fmt0(p.song.dur)} 노래 → <b>장면 ${sc.length}개</b> (한 장면 약 ${p.clipLen}초)</div>
-      <div data-sub="① 길이 · 분위기"><div class="field"><label>⏱ 장면 하나 길이</label><div class="chips">${[4, 6, 8, 10].map(v => chip('clipLen', v, p.clipLen === v, v + '초' + (v === 8 ? ' (Flow)' : ''))).join('')}</div></div>
+      <div data-sub="① 분위기"><div class="field"><label>⏱ 장면 하나 길이</label><div class="chips">${[4, 6, 8, 10].map(v => chip('clipLen', v, p.clipLen === v, v + '초' + (v === 8 ? ' (Flow)' : ''))).join('')}</div></div>
       <div class="field"><label>🛠 만드는 방법</label><div class="chips">${chip('mode', 'video', vid, '🎬 영상 (Flow)')}${chip('mode', 'image', !vid, '🖼 그림 · 사진')}</div></div>
       <div class="sub"><h3>🎨 전체 분위기 <span class="muted">(모든 장면 글에 똑같이 들어가요)</span></h3>
         <div class="chips">${STYLES.map(s => chip('style', s, lk.style === s, s)).join('')}</div>
         <div class="field"><label>💭 노래 분위기</label><input type="text" id="fMood" value="${esc(lk.mood)}" placeholder="예: 봄 햇살, 그리움, 따뜻한 재회"></div>
         <div class="field"><label>🧑 주인공 (같은 사람이 계속 나오게)</label><input type="text" id="fHero" value="${esc(lk.hero)}" placeholder="예: 20대 여성, 긴 생머리, 하얀 원피스"></div>
+        <div class="field"><label>🇰🇷 한국 사람 · 한국 배경</label><div class="chips">${chip('kr', 1, KR(p), '켜기 (기본)')}${chip('kr', 0, !KR(p), '끄기')}</div></div>
+        <div class="note blue">🧑 <b>주인공 그림 먼저 1장</b> 만들어 두세요. Flow에서 그 그림을 <b>재료(참고 이미지)</b>로 넣고 장면을 만들면 뮤비 내내 같은 사람이 나와요.<br><button class="btn sm main" data-a="heroCopy" style="margin-top:6px">📋 주인공 그림 글 복사</button></div>
       </div>
       </div>
-      <div class="sub" data-sub="② 장면 글 받기"><h3>🤖 장면 글 한꺼번에 받기 (추천)</h3>
+      <div class="sub" data-sub="② 장면 글"><h3>🤖 장면 글 한꺼번에 받기 (추천)</h3>
         <p class="muted">① 아래 버튼 → 요청 글이 복사되고 Gemini가 열려요 → 붙여넣고 보내기<br>② 받은 답을 통째로 복사해서 아래 칸에 붙여넣기 → 「✅ 장면 글 넣기」</p>
         <div class="row"><button class="btn main" data-a="planAI">📋 요청 복사 + Gemini 열기</button></div>
         <div class="field"><textarea id="fPlan" placeholder="S1: …&#10;S2: …" style="min-height:80px"></textarea></div>
-        <button class="btn" data-a="planIn">✅ 장면 글 넣기</button>
+        <div class="row"><button class="btn main" data-a="planPaste">📋 붙여넣기 + 넣기</button><button class="btn" data-a="planIn">✅ 장면 글 넣기</button></div>
+        <p class="muted">${sc.filter(s => s.prompt).length ? `✅ 장면 글 ${sc.filter(s => s.prompt).length}/${sc.length}개 들어 있어요` : ''}</p>
       </div>
-      <div class="sub" data-sub="③ 장면 채우기"><h3>🎞 장면 칸 · 채움 ${filled}/${sc.length} · 👍 ${oks}</h3>
+      <div class="sub" data-sub="③ 채우기"><h3>🎞 장면 칸 · 채움 ${filled}/${sc.length} · 👍 ${oks}</h3>
         <p class="muted">장면마다: 📋 글 복사 → ${vid ? 'Flow에서 영상 만들기 → 내려받기' : '그림 AI에서 그림 만들기 → 저장'} → 📂 넣기 → ▶ 들어 보고 분위기가 맞으면 👍</p>
-        <div class="row"><button class="btn" data-a="flow">🌊 Flow 열기</button><button class="btn" data-a="bulk"${dis}>📥 여러 개 한꺼번에 넣기</button></div>
+        <div class="nextCp"><div class="muted">지금 복사할 장면 <b>${Math.min((p.cpNext || 0) + 1, sc.length)} / ${sc.length}</b> · 복사함 ${sc.filter(s => s.cp).length}개</div>
+          <button class="btn main big" data-a="cpNext">📋 장면 ${Math.min((p.cpNext || 0) + 1, sc.length)} 글 복사 → ${vid ? 'Flow' : '그림 AI'}에 붙여넣기</button>
+          <div class="row"><button class="btn sm ghost" data-a="cpBack">◀ 앞 장면</button><button class="btn sm" data-a="flow">🌊 Flow 열기</button><button class="btn sm ghost" data-a="cpReset">↺ 처음부터</button></div></div>
+        <div class="row"><button class="btn" data-a="bulk"${dis}>📥 만든 영상 여러 개 한꺼번에 넣기</button></div>
         <div class="grid">${sc.map((s, i) => { const ly = MV.sceneLines(p, s); return `
           <div class="sc${s.ok ? ' ok' : ''}">
             <button class="th${p.ratio === '9:16' ? ' v916' : ''}" data-a="scPlay" data-v="${i}">${s.thumb ? `<img src="${s.thumb}" alt="">` : (s.file ? '🎞' : '비어 있음')}<span class="k">${i + 1}</span></button>
-            <div class="bd"><div class="hd">장면 ${i + 1} · ${fmt0(s.s)}~${fmt0(s.e)}</div>
+            <div class="bd"><div class="hd">장면 ${i + 1} · ${fmt0(s.s)}~${fmt0(s.e)}${s.cp ? ' <span class="cpd">📋 복사함</span>' : ''}${s.file ? ' <span class="cpd ok">✅ 넣음</span>' : ''}</div>
               <div class="ly">🎤 ${ly.length ? esc(ly.join(' / ')) : '<span class="muted">(반주)</span>'}</div>
               <div class="pr">✏️ ${s.prompt ? esc(s.prompt) : '장면 글 없음 → 가사로 자동'}</div>
               <div class="row"><button class="btn sm main" data-a="scCopy" data-v="${i}">📋 ${vid ? 'Flow' : '그림'} 글</button><button class="btn sm" data-a="scPut" data-v="${i}"${dis}>📂 ${s.file ? '바꾸기' : '넣기'}</button><button class="btn sm" data-a="scPlay" data-v="${i}">▶</button><button class="btn sm ${s.ok ? 'ok' : 'ghost'}" data-a="scOk" data-v="${i}">👍</button><button class="btn sm ghost" data-a="scEdit" data-v="${i}">✏️</button></div>
@@ -339,7 +357,7 @@
     const nT = L.filter(l => l.s != null).length;
     return `<div data-pv></div>
       ${nT === L.length ? '<div class="note blue">✅ 모든 줄에 시간이 들어 있어요. ▶ 로 확인하고, 어긋난 줄만 아래 「줄마다 다듬기」에서 고치세요.</div>' : ''}
-      <div class="tap" data-sub="① 톡톡 맞추기">
+      <div class="tap" data-sub="① 톡톡">
         <div class="muted" id="tapCnt"></div>
         <div class="now" id="tapNow"></div>
         <div class="nx" id="tapNx"></div>
@@ -347,11 +365,11 @@
         <div class="row" style="margin-top:8px"><button class="btn main" data-a="tapStart">▶ ${nT && nT < L.length ? '이어서 맞추기' : '처음부터 맞추기'}</button><button class="btn" data-a="tapBack">↩ 한 줄 뒤로</button><button class="btn" data-a="tapEnd">✋ 여기서 자막 끄기</button></div>
         <p class="muted">노래를 들으며 <b>노란 줄을 부르기 시작할 때 톡</b>. 반주만 나오는 부분(간주)에서는 ✋ 를 누르면 자막이 꺼져요.</p>
       </div>
-      <div class="sub" data-sub="② 줄마다 다듬기"><h3>🔧 줄마다 다듬기 (${nT}/${L.length}줄 맞춤)</h3>
+      <div class="sub" data-sub="② 다듬기"><h3>🔧 줄마다 다듬기 (${nT}/${L.length}줄 맞춤)</h3>
         <div class="lines">${L.map((l, i) => `<div class="ln" id="ln${i}"><span class="t${l.s == null ? ' no' : ''}">${l.s == null ? '--:--' : fmt(l.s)}</span><span class="x" data-a="lnText" data-v="${i}">${esc(l.t)}</span><button class="btn sm" data-a="lnNudge" data-v="${i}:-0.1">−</button><button class="btn sm" data-a="lnNudge" data-v="${i}:0.1">＋</button><button class="btn sm" data-a="lnNow" data-v="${i}">⏱</button><button class="btn sm main" data-a="lnPlay" data-v="${i}">▶</button></div>`).join('')}</div>
         <p class="muted">− ＋ : 0.1초씩 · ⏱ : 지금 재생 위치로 · 글자를 누르면 고치기</p>
       </div>
-      <div class="sub" data-sub="③ 자막 모양"><h3>🎨 자막 모양</h3>
+      <div class="sub" data-sub="③ 모양"><h3>🎨 자막 모양</h3>
         <div class="cards">
           ${[['karaoke', '🎤', '노래방', '부르는 대로 색이 차요'], ['two', '📝', '노래방 두 줄', '다음 줄도 미리 보여요'], ['line', '💬', '한 줄', '깔끔한 흰 글씨'], ['none', '🚫', '자막 없음', '']].map(a => `<button class="card${c.style === a[0] ? ' on' : ''}" data-a="capStyle" data-v="${a[0]}"><span class="e">${a[1]}</span>${a[2]}<small>${a[3]}</small></button>`).join('')}
         </div>
@@ -374,11 +392,11 @@
   /* ═════════ 5. 최종 편집 ═════════ */
   BODY[7] = function () {
     return `<div data-pv></div>
-      <div data-sub="① ✂️ 다듬기"><div class="note blue">아래 줄(🎬 화면 · 🎵 음악 · 💬 자막 · ✨ 효과)에서 고칠 것을 누르세요. 빈 곳을 누르면 그 위치로 가요.</div>
+      <div data-sub="① 다듬기"><div class="note blue">아래 줄(🎬 화면 · 🎵 음악 · 💬 자막 · ✨ 효과)에서 고칠 것을 누르세요. 빈 곳을 누르면 그 위치로 가요.</div>
       <div class="tl" id="tl"><div class="in" id="tlIn"></div></div>
       <div class="zoom"><button class="btn sm" data-a="zoom" data-v="-1">🔍−</button><button class="btn sm" data-a="zoom" data-v="1">🔍＋</button><span class="muted">타임라인 크기</span></div>
       <div class="panel" id="panel">${panel()}</div></div>
-      <div class="sub" data-sub="② 💾 저장"><h3>💾 MP4로 저장</h3>
+      <div class="sub" data-sub="② 저장"><h3>💾 MP4로 저장</h3>
         <div class="chips">${chip('q', 720, S.q === 720, '720p (빠르게)')}${chip('q', 1080, S.q === 1080, '1080p (선명하게)')}</div>
         <p class="muted">만드는 동안 화면을 켜 두세요. 3분 노래는 몇 분 걸려요.</p>
         <button class="btn pink big" data-a="export" id="expBtn">💾 뮤직비디오 만들기</button>
@@ -402,19 +420,19 @@
     const nCh = (p.lines || []).filter(l => l.sec === 'chorus' && l.s != null).length;
     return `<div data-pv></div>
       <div class="note blue">📍 지금 위치 <b id="fxNow">${fmt(tnow())}</b> — 화면 효과 · 스티커 · 효과음은 <b>지금 위치</b>에 들어가요. 미리 보기 아래 막대로 위치를 옮기세요.</div>
-      <div data-sub="① 🔀 장면 전환">
+      <div data-sub="① 전환">
         <p class="muted">장면이 바뀔 때 넘어가는 모양 (모든 장면)</p>
         <div class="chips">${Object.entries(F.TRANS).map(([k, t]) => chip('fxTrans', k, (f.trans || 'fade') === k, t)).join('')}</div>
         <div class="field"><label>넘어가는 시간</label><div class="chips">${[[.3, '⚡ 빠르게'], [.6, '보통'], [1, '🐢 천천히']].map(a => chip('fxTdur', a[0], f.tdur === a[0], a[1])).join('')}</div></div>
         <div class="row"><button class="btn" data-a="fxMix">🎲 장면마다 골고루 섞기</button><button class="btn ghost" data-a="fxMixOff">↩ 모두 같게</button></div>
         <p class="muted">장면 하나만 바꾸려면 7단계 편집에서 그 장면을 누르세요.</p>
       </div>
-      <div data-sub="② 🎨 색감 · 필름">
+      <div data-sub="② 색감">
         <div class="field"><label>🎨 색감 (모든 장면)</label><div class="chips">${Object.entries(F.FILTERS).map(([k, v]) => chip('fxColor', k, (f.color || 'none') === k, v[0])).join('')}</div></div>
         <div class="field"><label>🎞 필름 느낌</label><div class="chips">${[['none', '없음'], ['cinema', '🎞 시네마 띠'], ['vintage', '📼 빈티지'], ['vivid', '🌈 선명하게']].map(a => chip('film', a[0], f.film === a[0], a[1])).join('')}</div></div>
         <div class="field"><label>🖼 사진 천천히 확대</label><div class="chips">${chip('zoomImg', 1, f.zoom, '켜기')}${chip('zoomImg', 0, !f.zoom, '끄기')}</div></div>
       </div>
-      <div data-sub="③ ✨ 화면 효과">
+      <div data-sub="③ 효과">
         <div class="field"><label>얼마 동안</label><div class="chips">${[[1, '1초'], [3, '3초'], [5, '5초'], [10, '10초'], [0, '노래 끝까지']].map(a => chip('fxLen', a[0], FXL.len === a[0], a[1])).join('')}</div></div>
         <p class="muted">👇 누르면 📍 지금 위치에 들어가요</p>
         <div class="chips">${Object.entries(F.EFX).map(([k, t]) => chip('efxAdd', k, false, t)).join('')}</div>
@@ -423,7 +441,7 @@
         </div>
         <div class="sub"><h3>들어간 화면 효과</h3>${itemRows('efx')}</div>
       </div>
-      <div data-sub="④ 😀 스티커">
+      <div data-sub="④ 스티커">
         <div class="field"><label>위치</label><div class="pos9">${Object.keys(POS).map(k => `<button type="button" class="${FXL.pos === k ? 'on' : ''}" data-a="fxPos" data-v="${k}"></button>`).join('')}</div></div>
         <div class="field"><label>크기 · 얼마 동안</label><div class="chips">${[[.7, '작게'], [1, '보통'], [1.5, '크게']].map(a => chip('fxSize', a[0], FXL.size === a[0], a[1])).join('')} ${[[2, '2초'], [3, '3초'], [5, '5초']].map(a => chip('fxLen', a[0], FXL.len === a[0], a[1])).join('')}</div></div>
         <p class="muted">👇 누르면 📍 지금 위치에 들어가요</p>
@@ -431,13 +449,13 @@
         <div class="row" style="margin-top:6px"><button class="btn" data-a="stkAdd" data-v="b:text">🔤 글씨 상자</button><button class="btn" data-a="stkAdd" data-v="b:bk">🅑 BK 로고</button></div>
         <div class="sub"><h3>들어간 스티커</h3>${itemRows('stk')}</div>
       </div>
-      <div data-sub="⑤ 🔔 효과음">
+      <div data-sub="⑤ 소리">
         <p class="muted">👇 누르면 소리를 들려주고 📍 지금 위치에 들어가요 (앱이 직접 만드는 소리라 저작권 걱정 없어요)</p>
         <div class="chips">${Object.entries(F.SFX).map(([k, t]) => chip('sfxAdd', k, false, t)).join('')}</div>
         <div class="field"><label>효과음 크기</label><div class="chips">${[[.4, '작게'], [.8, '보통'], [1.2, '크게']].map(a => chip('sfxVol', a[0], f.sfxVol === a[0], a[1])).join('')}</div></div>
         <div class="sub"><h3>들어간 효과음</h3>${itemRows('sfx')}</div>
       </div>
-      <div data-sub="⑥ 🎬 처음 · 끝">${startEnd()}</div>`;
+      <div data-sub="⑥ 처음·끝">${startEnd()}</div>`;
   };
   function startEnd() {
     const f = S.p.fx;
@@ -586,7 +604,13 @@
       case 'planAI': return copyOpen(planAIText(), 'https://gemini.google.com/app', '📋 요청 글을 복사했어요 · Gemini에 붙여넣고 보내기');
       case 'planIn': { const n = parsePlan($('fPlan').value); save(); render(); return toast(n ? `✅ 장면 글 ${n}개를 넣었어요` : '⚠️ 「S1: …」 모양의 줄을 못 찾았어요', 3500); }
       case 'flow': return g.open(FLOW_URL, '_blank');
-      case 'scCopy': return copyOpen(sceneText(+v), null, `📋 장면 ${+v + 1} 글을 복사했어요 · ${p.mode === 'image' ? '그림 AI' : 'Flow'}에 붙여넣기`);
+      case 'kr': p.look.kr = v === '1'; save(); return render();
+      case 'heroCopy': return copyOpen(heroText(), null, '📋 주인공 그림 글을 복사했어요 · Flow(이미지)에 붙여넣기');
+      case 'planPaste': { let t = ''; try { t = await navigator.clipboard.readText(); } catch (e) { /* 직접 */ } if (!t) { toast('칸을 길게 눌러 「붙여넣기」 후 「✅ 장면 글 넣기」를 눌러 주세요', 4000); return $('fPlan').focus(); } $('fPlan').value = t; const n = parsePlan(t); save(); render(); return toast(n ? `✅ 장면 글 ${n}개를 넣었어요` : '⚠️ 장면 글(S1: …)을 못 찾았어요 · Gemini 답을 통째로 복사했는지 봐 주세요', 4000); }
+      case 'cpNext': { const k = clamp(p.cpNext || 0, 0, p.scenes.length - 1); p.scenes[k].cp = 1; p.cpNext = Math.min(k + 1, p.scenes.length - 1); save(); await copyOpen(sceneText(k), null, `📋 장면 ${k + 1} 글 복사 · ${p.mode === 'image' ? '그림 AI' : 'Flow'}에 붙여넣기${k + 1 >= p.scenes.length ? ' · 마지막 장면이에요' : ''}`); return render(); }
+      case 'cpBack': p.cpNext = Math.max(0, (p.cpNext || 0) - 1); save(); return render();
+      case 'cpReset': if (confirm('복사 표시를 지우고 장면 1부터 다시 할까요?')) { p.scenes.forEach(s => { s.cp = 0; }); p.cpNext = 0; save(); render(); } return;
+      case 'scCopy': p.scenes[+v].cp = 1; p.cpNext = Math.min(+v + 1, p.scenes.length - 1); save(); setTimeout(render, 50); return copyOpen(sceneText(+v), null, `📋 장면 ${+v + 1} 글을 복사했어요 · ${p.mode === 'image' ? '그림 AI' : 'Flow'}에 붙여넣기`);
       case 'scPut': case 'scPut5': { if (a === 'scPut' && p.locked) return toast('🔒 잠겨 있어요'); const [f] = await pickFiles('video/*,image/*'); if (!f) return; await putScene(+v, f); save(); if (a === 'scPut5') editRefresh(); else render(); S.player.seek(p.scenes[+v].s); return toast(`📂 장면 ${+v + 1}에 넣었어요 · ▶ 로 들어 보세요`); }
       case 'bulk': {
         if (p.locked) return toast('🔒 잠겨 있어요');

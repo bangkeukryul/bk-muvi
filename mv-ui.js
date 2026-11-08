@@ -904,7 +904,7 @@
   document.addEventListener('play', e => { if (e.target.id === 'songAu' && S.player) S.player.pause(); }, true);
   document.addEventListener('toggle', e => { if (e.target.tagName === 'DETAILS' && e.target.open) tapShow(S.player ? S.player.time() : 0); }, true);
 
-  MV.UI = { traySheet, S, toast, save, render, renderStage, go, copyOpen, chip, applyLyrics, sheet, sheetClose, pickFiles, thumbOf, putScene, delScene, tapShow, libPick, act: (a, v, el) => act(a, v, el), get p() { return S.p; } };
+  MV.UI = { traySheet, setSong, S, toast, save, render, renderStage, go, copyOpen, chip, applyLyrics, sheet, sheetClose, pickFiles, thumbOf, putScene, delScene, tapShow, libPick, act: (a, v, el) => act(a, v, el), get p() { return S.p; } };
   g.addEventListener('DOMContentLoaded', () => {
     $('homeBtn').addEventListener('click', () => home());
     home();

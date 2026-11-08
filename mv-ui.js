@@ -219,7 +219,8 @@
       </div>
       <div class="sub" data-sub="② 가사"><h3>📝 가사</h3>
         <div class="field"><textarea id="fLyr" placeholder="가사를 붙여 넣으세요 (한 줄씩)&#10;[00:15] 처럼 시간이 붙어 있으면 자막 시간도 같이 들어가요">${esc(p.lyricsRaw)}</textarea></div>
-        <div class="row"><button class="btn main" data-a="lyrApply">✅ 가사 넣기</button><button class="btn" data-a="lyrAI">🤖 Gemini에게 가사 시간 받기</button></div>
+        <div class="row"><button class="btn main" data-a="lyrApply">✅ 가사 넣기</button><button class="btn" data-a="lyrAI">🤖 MP3로 가사 · 시간 받기 (Gemini)</button></div>
+        <div class="row"><button class="btn sm ghost" data-a="lyrClear">🧹 가사 칸 비우기</button></div>
         <p class="muted">${L.length ? `가사 ${L.length}줄 들어 있어요${timed ? ` · 시간 맞춘 줄 ${timed}줄` : ''}` : '가사를 넣으면 장면마다 그 시간의 가사가 보여요.'}<br>🤖 버튼: 요청 글이 복사되고 Gemini가 열려요 → ＋로 MP3 올리기 → 붙여넣기 → 보내기 → 받은 답을 위 칸에 붙여넣고 「✅ 가사 넣기」</p>
       </div>
       <div class="sub" data-sub="③ 장면"><div class="pvStick" data-pv></div><h3>📐 화면 모양</h3>
@@ -248,7 +249,21 @@
     return r;
   }
   function lyrAIText() {
-    return '(이 메시지와 함께 노래 MP3 파일을 첨부했어요)\n첨부한 노래(MP3)의 가사를 들리는 대로 받아 적어 주세요.\n- 한 줄씩 나눠서, 줄마다 맨 앞에 그 줄을 부르기 시작하는 시간을 [분:초] 형식으로 붙여 주세요. 예: [00:15] 첫 줄 가사\n- 반주만 나오는 부분(간주)은 쓰지 마세요.\n- 한 줄은 화면 자막에 맞게 15자 안팎으로 짧게 나눠 주세요.\n- 다른 설명 없이 시간과 가사만 써 주세요.' + (S.p.lyricsRaw.trim() ? '\n\n아래는 원래 가사예요. 이 글자 그대로 쓰고 시간만 맞춰 주세요:\n' + S.p.lyricsRaw.replace(/^\[?\d{1,2}:\d{2}[^\]\s]*\]?\s*/gm, '').trim() : '');
+    const p = S.p, own = MV.parseLyrics(p.lyricsRaw || '').lines.map(l => l.t).join('\n').trim();
+    return `[BK뮤비 · 노래 「${p.title || '제목 없음'}」 가사 받기]\n(이 메시지와 함께 노래 MP3 파일 하나를 첨부했어요)\n` +
+      '첨부한 노래(MP3)를 듣고 가사를 들리는 대로 받아 적어 주세요.\n- 한 줄씩 나눠서, 줄마다 맨 앞에 그 줄을 부르기 시작하는 시간을 [분:초] 형식으로 붙여 주세요. 예: [00:15] 첫 줄 가사\n- 반주만 나오는 부분(간주)은 쓰지 마세요.\n- 한 줄은 화면 자막에 맞게 15자 안팎으로 짧게 나눠 주세요.\n- 인사말이나 설명 없이 시간과 가사만 써 주세요.' +
+      (own ? '\n\n아래는 원래 가사예요. 이 글자 그대로 쓰고 시간만 맞춰 주세요:\n' + own : '');
+  }
+  function lyrAISheet() {
+    const t = lyrAIText();
+    sheet('🤖 MP3로 가사 · 시간 받기', `<ol class="steps1">
+        <li>Gemini에서 <b>✏️ 새 채팅</b>을 누르고, 입력칸에 <b>예전 글이 남아 있으면 길게 눌러 전부 지우기 🧹</b></li>
+        <li><b>＋ → 「${esc(S.p.title || '이 노래')}」 MP3 하나만</b> 올리기</li>
+        <li>아래 <b>📋 복사 + Gemini 열기</b> → 입력칸에 <b>붙여넣기 → 보내기</b></li>
+        <li>받은 답을 <b>통째로 복사</b> → BK뮤비 가사 칸에 붙여넣기 → <b>✅ 가사 넣기</b></li></ol>
+      <div class="field"><label>📋 복사되는 요청 글 <span class="muted">(맨 위에 노래 제목이 있어요)</span></label><textarea readonly style="min-height:150px;font-size:.82rem">${esc(t)}</textarea></div>
+      <button class="btn main big" data-a="lyrAIgo">📋 복사 + Gemini 열기</button>
+      <p class="muted">${S.p.lyricsRaw && S.p.lyricsRaw.trim() ? '가사 칸에 있는 가사도 함께 보내서 시간만 맞춰 달라고 해요.' : '가사 칸이 비어 있어서 <b>MP3만 듣고 가사를 뽑아 달라고</b> 해요.'}</p>`);
   }
   async function showMusicBox() {
     const el = $('boxList'); el.innerHTML = '<p class="muted">불러오는 중…</p>';
@@ -682,7 +697,9 @@
       case 'musicBox': return showMusicBox();
       case 'boxPick': { const o = S.box[+v]; if (o) await setSong(o.blob, o.name || (o.title + '.mp3'), o.lyrics, o.title); return; }
       case 'lyrApply': { p.lyricsRaw = $('fLyr').value; const r = applyLyrics(); save(); render(); return toast(r.lines.length ? `📝 가사 ${r.lines.length}줄${r.timed ? ' · 시간도 같이 들어갔어요' : ''}` : '가사가 비어 있어요'); }
-      case 'lyrAI': p.lyricsRaw = $('fLyr').value; save(); return copyOpen(lyrAIText(), 'https://gemini.google.com/app', '📋 복사했어요 · Gemini에서 ① ＋로 MP3 올리기 ② 붙여넣기 ③ 보내기');
+      case 'lyrAI': p.lyricsRaw = $('fLyr').value; save(); return lyrAISheet();
+      case 'lyrAIgo': sheetClose(); return copyOpen(lyrAIText(), 'https://gemini.google.com/app', '📋 복사했어요 · Gemini에서 ✏️ 새 채팅 → 예전 글 지우기 → ＋ MP3 → 붙여넣기 → 보내기');
+      case 'lyrClear': { if (!confirm('가사 칸과 들어 있는 가사를 모두 비울까요? (맞춘 자막 시간도 지워져요)')) return; p.lyricsRaw = ''; p.lines = []; S.tapK = 0; save(); if (S.player) S.player.refresh(); render(); return toast('🧹 가사 칸을 비웠어요'); }
       case 'ratio': p.ratio = v; await S.player.setProject(p, S.song); save(); return render();
       /* 2 */
       case 'clipLen': if (p.locked) return toast('🔒 잠겨 있어요'); if (p.scenes.some(s => s.file) && !confirm('장면 길이를 바꾸면 장면 칸 수가 바뀌어요. 넣은 영상은 앞에서부터 그대로 둘게요. 바꿀까요?')) return; p.clipLen = +v; p.scenes = MV.planScenes(p); save(); return render();

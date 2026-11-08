@@ -448,7 +448,7 @@
     applyReuse();
   }
   /* ♻ 다시 쓰기: 「장면 14 = 장면 6」 칸에 6번 그림을 저절로 */
-  function applyReuse() { const S2 = S.p.scenes; S2.forEach(x => { if (x.reuse == null) return; const src = S2[x.reuse]; if (!src || !src.file) return; if (x.file && !x.auto) return; Object.assign(x, { file: src.file, kind: src.kind, name: src.name, thumb: src.thumb, off: 0, auto: true }); }); }
+  function applyReuse() { const S2 = S.p.scenes; S2.forEach(x => { if (x.reuse == null || x.pin) return; const src = S2[x.reuse]; if (!src || !src.file) return; if (x.file && !x.auto) return; Object.assign(x, { file: src.file, kind: src.kind, name: src.name, thumb: src.thumb, off: 0, auto: true }); }); }
   /* 🗂 서랍: 넣은 그림 · 몇 번 씀 */
   function trayList() { const m = new Map(); S.p.scenes.forEach((x, i) => { if (!x.file) return; const o = m.get(x.file) || { file: x.file, kind: x.kind, name: x.name, thumb: x.thumb, uses: [] }; o.uses.push(i + 1); m.set(x.file, o); }); return [...m.values()]; }
   function traySheet(i) {
@@ -464,6 +464,7 @@
     save(); render();
     toast(photo ? '🧑 사진을 넣었어요 · 예전 주인공 설명은 지웠어요 (사진과 다를 수 있어서) · 맞으면 🔒 고정' : '🧑 주인공 그림을 넣었어요 · 맞으면 🔒 고정', 4500);
   }
+  function pinned(i) { const c = S.p && S.p.scenes[i]; if (c && c.pin) { toast(`🔒 장면 ${i + 1}은(는) 고정돼 있어요 · ③ ① 채우기에서 「🔓 고정 풀기」`, 3500); return true; } return false; }
   function delScene(i) {
     const p = S.p, sc = p.scenes[i]; if (!sc || !sc.file) return;
     if (!p.scenes.some((o, k) => k !== i && o.file === sc.file)) MV.delFile(sc.file);
@@ -781,7 +782,7 @@
       case 'winNext': return winOpen(S.win + 1, true);
       case 'winPlay': { const sc = p.scenes[S.win]; return S.player.play(Math.max(0, sc.s - (S.win ? .2 : 0)), sc.e + .25); }
       case 'winX': return winClose();
-      case 'scDel': if (p.locked) return toast('🔒 잠겨 있어요'); if (!confirm(`장면 ${+v + 1}의 사진 · 영상을 뺄까요? (칸과 시간은 그대로예요)`)) return; delScene(+v); save(); if (S.win != null) { winRender(); S.player.seek(p.scenes[+v].s + .05); } else render(); return toast('🗑 뺐어요');
+      case 'scDel': if (p.locked) return toast('🔒 잠겨 있어요'); if (pinned(+v)) return; if (!confirm(`장면 ${+v + 1}의 사진 · 영상을 뺄까요? (칸과 시간은 그대로예요)`)) return; delScene(+v); save(); if (S.win != null) { winRender(); S.player.seek(p.scenes[+v].s + .05); } else render(); return toast('🗑 뺐어요');
       case 'heroPut': { if (p.look.heroLock && !confirm('고정한 주인공 사진을 바꿀까요?')) return; const [f2] = await pickFiles('image/*'); if (!f2) return; return setHero(f2); }
       case 'heroLock': p.look.heroLock = v === '1'; save(); render(); return toast(v === '1' ? '🔒 이 사진으로 주인공을 고정했어요' : '🔓 고정을 풀었어요');
       case 'heroSave': { const bl = await MV.getFile(p.look.heroImg); if (!bl) return toast('사진을 찾을 수 없어요'); const u = URL.createObjectURL(bl), a2 = document.createElement('a'); a2.href = u; a2.download = (p.title || 'BK뮤비') + '_주인공.' + ((bl.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg')); document.body.appendChild(a2); a2.click(); a2.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); return toast('⬇ 휴대폰에 저장했어요 · Flow 재료에서 고르세요', 4000); }
@@ -798,12 +799,12 @@
       case 'reuseOff': { sheetClose(); const x = p.scenes[+v]; if (!x) return; if (x.auto && x.file) { x.file = null; x.kind = null; x.thumb = ''; x.name = ''; } x.reuse = null; x.auto = false; x.prompt = x.prompt0 || ''; save(); render(); return toast(`♻ 풀었어요 · 장면 ${+v + 1}도 새로 그려요`); }
       case 'cpReset': if (confirm('복사 표시를 지우고 장면 1부터 다시 할까요?')) { p.scenes.forEach(s => { s.cp = 0; }); p.cpNext = 0; save(); render(); } return;
       case 'scCopy': p.scenes[+v].cp = 1; p.cpNext = Math.min(+v + 1, p.scenes.length - 1); save(); if (S.win == null) setTimeout(render, 50); return copyOpen(sceneText(+v), null, `📋 장면 ${+v + 1} 글을 복사했어요 · ${p.mode === 'image' ? 'ChatGPT 그림 방' : 'Flow'}에 붙여넣기`);
-      case 'scPut': case 'scPut5': { if (a === 'scPut' && p.locked) return toast('🔒 잠겨 있어요'); const [f] = await pickFiles('video/*,image/*'); if (!f) return; await putScene(+v, f); save(); if (a === 'scPut5') editRefresh(); else if (S.win != null) winRender(); else render(); S.player.seek(p.scenes[+v].s + .05); return toast(`📂 장면 ${+v + 1}에 넣었어요 · ▶ 로 들어 보세요`); }
+      case 'scPut': case 'scPut5': { if (a === 'scPut' && p.locked) return toast('🔒 잠겨 있어요'); if (pinned(+v)) return; const [f] = await pickFiles('video/*,image/*'); if (!f) return; await putScene(+v, f); save(); if (a === 'scPut5') editRefresh(); else if (S.win != null) winRender(); else render(); S.player.seek(p.scenes[+v].s + .05); return toast(`📂 장면 ${+v + 1}에 넣었어요 · ▶ 로 들어 보세요`); }
       case 'bulk': {
         if (p.locked) return toast('🔒 잠겨 있어요');
         const fs = (await pickFiles('video/*,image/*', true)).sort((x, y) => x.name.localeCompare(y.name, 'ko', { numeric: true })); if (!fs.length) return;
         let slots = p.scenes.map((s, i) => s.file || s.reuse != null ? -1 : i).filter(i => i >= 0);
-        if (!slots.length) { if (!confirm('빈 칸이 없어요. 1번 장면부터 바꿔 넣을까요?')) return; slots = p.scenes.map((s, i) => s.reuse != null ? -1 : i).filter(i => i >= 0); }
+        if (!slots.length) { if (!confirm('빈 칸이 없어요. 1번 장면부터 바꿔 넣을까요?')) return; slots = p.scenes.map((s, i) => s.reuse != null || s.pin ? -1 : i).filter(i => i >= 0); }
         toast('📥 넣는 중…', 9000); let n = 0; for (const f of fs) { if (n >= slots.length) break; await putScene(slots[n++], f); }
         applyReuse(); save(); render(); const nr = p.scenes.filter(x => x.reuse != null).length; return toast(`📥 ${n}개를 넣었어요${nr ? ` · ♻ 다시 쓰기 ${nr}칸은 저절로` : ''}${fs.length > n ? ` (칸이 모자라 ${fs.length - n}개는 빠졌어요)` : ''}`, 4500);
       }
@@ -811,7 +812,7 @@
       case 'mp4Share': { try { const f2 = new File([S.lastBlob], p.mp4.name, { type: 'video/mp4' }); if (navigator.canShare && navigator.canShare({ files: [f2] })) await navigator.share({ files: [f2], title: p.title }); else toast('이 휴대폰은 바로 보내기가 안 돼요 · ⬇️ 저장 후 보내 주세요'); } catch (e) { /* 취소 */ } return; }
       case 'tray': return traySheet(null);
       case 'trayFor': if (p.locked) return toast('🔒 잠겨 있어요'); return traySheet(+v);
-      case 'trayPut': { sheetClose(); const [i, fid] = [v.slice(0, v.indexOf(':')), v.slice(v.indexOf(':') + 1)]; trayPut(+i, fid); save(); if (S.p.step === 5 || S.p.step === 3) editRefresh(); else render(); return toast(`♻ 장면 ${+i + 1}에 넣었어요`); }
+      case 'trayPut': { sheetClose(); const [i, fid] = [v.slice(0, v.indexOf(':')), v.slice(v.indexOf(':') + 1)]; if (pinned(+i)) return; trayPut(+i, fid); save(); if (S.p.step === 5 || S.p.step === 3) editRefresh(); else render(); return toast(`♻ 장면 ${+i + 1}에 넣었어요`); }
       case 'trayPick': { const o = trayList().find(x => x.file === v); return sheet('🗂 이 그림을 넣을 장면', `<p class="muted">지금 ${o.uses.length}번 씀 (${o.uses.join(', ')}번)</p><div class="numGrid">${p.scenes.map((x, i) => `<button type="button" class="${x.file === v ? 'on' : ''}" data-a="trayPut" data-v="${i}:${esc(v)}">${i + 1}${x.reuse != null ? '♻' : ''}${x.file && x.file !== v ? '·' : ''}</button>`).join('')}</div>`); }
       case 'libOpen': { const k = p.scenes.findIndex(x => !x.file); return libPick(k < 0 ? 0 : k); }
       case 'libTog': { const k = LIB.sel.indexOf(v); if (k >= 0) LIB.sel.splice(k, 1); else if (LIB.sel.length < LIB.max) LIB.sel.push(v); return libSheet(); }

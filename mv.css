@@ -239,7 +239,7 @@ header.top button{border:0;border-radius:10px;padding:6px 10px;background:#fffff
 /* 채우기 버튼 (BK쇼츠 모양) */
 .nud{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0}
 .nud button{border:1.5px solid var(--line);background:#fff;border-radius:14px;padding:10px 2px;font-weight:900;color:var(--p);font-size:.86rem}
-.cutRow{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.cutRow{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
 .cutRow button{border:0;border-radius:14px;background:#ede9fe;color:var(--p);font-weight:900;font-size:.74rem;padding:8px 2px;line-height:1.25;min-height:54px}
 .cutRow button.hot{background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff}
 .cutRow button.keep{background:#fff;border:2px solid var(--p)}
@@ -302,3 +302,6 @@ header.top button{border:0;border-radius:10px;padding:6px 10px;background:#fffff
 
 .gemSong{background:#fdf4ff;border:2px solid #f0abfc;border-radius:14px;padding:10px 12px;margin:10px 0}.gemSong b{color:#a21caf}.gemSong .btn{width:100%}
 .btn.red{color:#dc2626;border-color:#fecaca}
+.cutRow button.mv{background:#fff7ed;color:#c2410c}
+.btn.pinBtn{background:#ecfdf5;color:#047857;border:1.5px solid #6ee7b7}.btn.pinOn{background:#047857;color:#fff}
+.cpd.pin{background:#d1fae5;color:#047857}

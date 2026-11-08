@@ -16,6 +16,7 @@
   function rmScene(p, i) { const c = p.scenes[i]; if (i > 0) p.scenes[i - 1].e = c.e; else p.scenes[1].s = 0; p.scenes.splice(i, 1);
     p.scenes.forEach(o => { if (o.reuse == null) return; if (o.reuse === i) o.reuse = null; else if (o.reuse > i) o.reuse--; });
     if (p.cpNext > i) p.cpNext--; if (c.file && !p.scenes.some(o => o.file === c.file)) MV.delFile(c.file); }
+  function pinSig(p) { return (p.scenes || []).filter(o => o.pin).map(o => `${o.id}:${o.s}:${o.e}:${o.file}`).join('|'); }
   function snap() { T.undo.push(snapOf(P())); if (T.undo.length > 40) T.undo.shift(); T.redo = []; }
   function restore(o) { const p = P(); KEYS.forEach(k => { p[k] = JSON.parse(o[k]); }); }
   function undo() { if (!T.undo.length) return U().toast('되돌릴 것이 없어요'); T.redo.push(snapOf(P())); restore(T.undo.pop()); changed(); U().toast('↩ 되돌렸어요'); }
@@ -44,7 +45,7 @@
     const p = P(), pps = T.pps[mode], D = dur(), sc = p.scenes || [], selS = mode === 'fill' ? T.fsel : (T.esel && T.esel.k === 'sc' ? T.esel.i : -1);
     const H = mode === 'fill' ? 70 : 54;
     let h = `<div class="tlrow" style="height:${H}px">${sc.map((s, i) => { const w = Math.max(4, (s.e - s.s) * pps - 2), long = s.kind === 'video' && (s.e - s.s) > 8.3 && !(s.speed && s.speed < 1);
-      return `<div class="tb${i === selS ? ' sel' : ''}" data-tl="sc:${i}" style="left:${s.s * pps}px;width:${w}px;${s.thumb ? `background-image:url(${s.thumb})` : `background-color:${s.file ? COL[i % COL.length] : '#334155'}`}"><span class="tn">${i + 1}</span><span class="tdur">${(s.e - s.s).toFixed(1)}초${long ? ' ⚠️' : ''}</span></div>`; }).join('')}`;
+      return `<div class="tb${i === selS ? ' sel' : ''}" data-tl="sc:${i}" style="left:${s.s * pps}px;width:${w}px;${s.thumb ? `background-image:url(${s.thumb})` : `background-color:${s.file ? COL[i % COL.length] : '#334155'}`}"><span class="tn">${i + 1}${s.pin ? ' 🔒' : ''}</span><span class="tdur">${(s.e - s.s).toFixed(1)}초${long ? ' ⚠️' : ''}</span></div>`; }).join('')}`;
     if (p.thumb && p.thumb.on) h += `<div class="tb card" data-tl="th:0" style="left:0;width:${Math.max(18, p.thumb.dur * pps - 2)}px">🖼 썸네일</div>`;
     if (p.endc && p.endc.on) h += `<div class="tb card end" data-tl="en:0" style="left:${(D - p.endc.dur) * pps}px;width:${Math.max(18, p.endc.dur * pps - 2)}px">🏁 엔딩</div>`;
     h += '</div>';
@@ -76,23 +77,23 @@
   /* ═════════ ① 채우기 ═════════ */
   function fillPart() {
     const p = P(), L = !!p.locked, sc = p.scenes || [], t = S().player ? S().player.time() : 0, i = T.fsel != null ? clamp(T.fsel, 0, sc.length - 1) : sceneIdx(t), c = sc[i] || {};
-    const dis = L ? ' disabled' : '', lyr = c.s != null ? MV.sceneLines(p, c) : [];
+    const dis = L ? ' disabled' : '', pn = c.pin ? ' disabled' : '', lyr = c.s != null ? MV.sceneLines(p, c) : [];
     if (T.tapMode) return `<div class="tapScene"><div class="muted">🎵 노래를 들으며 <b>다음 장면으로 바뀔 순간</b>마다 톡 · 지금 장면 <b>${T.tapJ}</b> → ${T.tapJ + 1}</div>
       <button class="tapbtn" data-a="fTap">👆 다음 장면!</button>
       <div class="row" style="margin-top:8px"><button class="btn" data-a="fTapUndo">↩ 다시 (방금 것 취소)</button><button class="btn ghost" data-a="fTapStop">■ 그만</button></div></div>${tlHTML('fill')}`;
     return `${L ? '<div class="note red">🔒 잠겨 있어요 — 장면 길이를 바꾸려면 ③ 잠금에서 풀어 주세요</div>' : ''}
       <div class="nud">${[[-1, '◀◀ 1초'], [-.1, '◀ 0.1초'], [.1, '0.1초 ▶'], [1, '1초 ▶▶']].map(a => `<button type="button" data-a="fNud" data-v="${a[0]}">${a[1]}</button>`).join('')}</div>
       <div class="cutRow">
-        <button type="button" data-a="fCut"${dis}>✂️ 여기서 끝</button><button type="button" data-a="fPrev"${dis}>➡️ 앞 장면 여기까지</button><button type="button" data-a="fBlank"${dis}>⬜ 빈칸 넣기</button>
-        <button type="button" class="hot" data-a="fTapGo"${dis}>🎵 톡톡 넘기기</button><button type="button" class="keep" data-a="fKeep">${T.keep === 'follow' ? '뒤 장면<br>🚃 따라감' : '뒤 장면<br>📍 제자리'}</button></div>
+        <button type="button" data-a="fCut"${dis}>✂️ 여기서 끝</button><button type="button" data-a="fPrev"${dis}>➡️ 앞 장면 여기까지</button><button type="button" data-a="fNextHere"${dis}>⬅️ 뒤 장면 여기부터</button><button type="button" data-a="fBlank"${dis}>⬜ 빈칸 넣기</button>
+        <button type="button" class="hot" data-a="fTapGo"${dis}>🎵 톡톡 넘기기</button><button type="button" class="keep" data-a="fKeep">${T.keep === 'follow' ? '뒤 장면<br>🚃 따라감' : '뒤 장면<br>📍 제자리'}</button><button type="button" class="mv" data-a="fMove" data-v="-1"${dis || pn || !i ? ' disabled' : ''}>◀ ${i + 1}번<br>앞으로</button><button type="button" class="mv" data-a="fMove" data-v="1"${dis || pn || i >= sc.length - 1 ? ' disabled' : ''}>${i + 1}번 ▶<br>뒤로</button></div>
       <div class="row tlSub"><button class="btn sm ghost" data-a="tlUndo"${T.undo.length ? '' : ' disabled'}>↩ 되돌리기</button><button class="btn sm ghost" data-a="tlRedo"${T.redo.length ? '' : ' disabled'}>↪</button><button class="btn sm ghost" data-a="tlZoom" data-v="fill:0">🔍 ${T.pps.fill > 20 ? '작게' : '크게'}</button><span class="muted" id="fStat">${fmt(t)} · ${i + 1}번 ${fmt0(c.s)}~${fmt0(c.e)}</span></div>
       ${tlHTML('fill')}
       <div class="fsc">
-        <div class="hd"><b>장면 ${i + 1}</b> <span class="muted">${fmt(c.s)} ~ ${fmt(c.e)} · ${(c.e - c.s).toFixed(1)}초</span>${c.kind === 'video' && (c.e - c.s) > 8.3 ? ' <span class="cpd">⚠️ 8초 넘음 → 영상이 다시 반복돼요</span>' : ''}</div>
+        <div class="hd"><b>장면 ${i + 1}</b>${c.pin ? ' <span class="cpd pin">🔒 고정</span>' : ''} <span class="muted">${fmt(c.s)} ~ ${fmt(c.e)} · ${(c.e - c.s).toFixed(1)}초</span>${c.kind === 'video' && (c.e - c.s) > 8.3 ? ' <span class="cpd">⚠️ 8초 넘음 → 영상이 다시 반복돼요</span>' : ''}</div>
         <div class="ly">🎤 ${lyr.length ? esc(lyr.join(' / ')) : '<span class="muted">(반주)</span>'}</div>
         <div class="row"><button class="btn sm main" data-a="fPlay">▶ 이 장면만</button><button class="btn sm main" data-a="fNext">다음 장면 ▶</button><button class="btn sm" data-a="fLyTap">👆 가사 톡</button></div>
-        <div class="row"><button class="btn sm" data-a="scPut" data-v="${i}"${dis}>📂 ${c.file ? '바꾸기' : '넣기'}</button>${c.file ? `<button class="btn sm ghost" data-a="scDel" data-v="${i}"${dis}>🗑 빼기</button>` : ''}<button class="btn sm ghost red" data-a="fScDel" data-v="${i}"${dis}>❌ 삭제</button><button class="btn sm ghost" data-a="scCopy" data-v="${i}">🔄 장면 다시 요청</button></div>
-        <p class="muted" style="margin:2px 0 0;font-size:.78rem">🗑 빼기 = 그림만 빼고 칸은 남겨요 · ❌ 삭제 = 이 장면 칸을 없애요 (앞 장면이 시간을 이어받아요) · 🔄 다시 요청 = 그림이 마음에 안 들 때 ChatGPT에 다시 그려 달라는 글 복사</p>
+        <div class="row"><button class="btn sm ${c.pin ? 'pinOn' : 'pinBtn'}" data-a="fPin" data-v="${i}"${dis}>${c.pin ? '🔓 고정 풀기' : '🔒 고정'}</button><button class="btn sm" data-a="scPut" data-v="${i}"${dis || pn}>📂 ${c.file ? '바꾸기' : '넣기'}</button>${c.file ? `<button class="btn sm ghost" data-a="scDel" data-v="${i}"${dis || pn}>🗑 빼기</button>` : ''}<button class="btn sm ghost red" data-a="fScDel" data-v="${i}"${dis || pn}>❌ 삭제</button><button class="btn sm ghost" data-a="scCopy" data-v="${i}">🔄 장면 다시 요청</button></div>
+        <p class="muted" style="margin:2px 0 0;font-size:.78rem">🔒 고정 = 다 맞춘 장면을 잠가서 그림 · 시간이 안 바뀌게 (자막 톡은 돼요) · 🗑 빼기 = 그림만 빼고 칸은 남겨요 · ❌ 삭제 = 이 장면 칸을 없애요 · 🔄 다시 요청 = ChatGPT에 다시 그려 달라는 글 복사</p>
         <div class="muted tapNow" style="margin-top:4px"></div>
       </div>
       <div class="row" style="margin-top:8px"><button class="btn sm" data-a="fSnap"${dis}>🧲 가사 줄에 맞춰 장면 넘기기</button><button class="btn sm" data-a="thSheet">🖼 썸네일</button><button class="btn sm" data-a="enSheet">🏁 엔딩</button></div>
@@ -100,6 +101,9 @@
         <li>▶ 로 노래를 듣다가 장면을 바꾸고 싶은 곳에서 ⏸ → ◀ 0.1초 ▶ 로 커서를 딱 맞춰요.</li>
         <li><b>✂️ 여기서 끝</b> — 커서가 있는 장면을 여기까지로, 다음 장면이 여기서 시작해요.</li>
         <li><b>➡️ 앞 장면 여기까지</b> — 장면이 너무 일찍 바뀌었을 때, 앞 장면을 커서까지 늘려요.</li>
+        <li><b>⬅️ 뒤 장면 여기부터</b> — 장면이 너무 늦게 바뀔 때, 뒤 장면이 커서부터 시작해요 (옆 장면만 바뀌어요).</li>
+        <li><b>◀ 앞으로 · 뒤로 ▶</b> — 고른 장면의 그림을 옆 칸과 바꿔요. 시간 칸은 그대로라 자막이 흐트러지지 않아요.</li>
+        <li><b>🔒 고정</b> — 다 맞춘 장면은 고정! 풀기 전까지 그림 · 시작 · 끝 시간이 안 바뀌어요.</li>
         <li><b>🎵 톡톡 넘기기</b> — 노래를 들으며 「다음 장면!」 순간마다 톡. 처음부터 끝까지 한 번에.</li>
         <li><b>📍 제자리</b>: 바로 옆 장면만 바뀌어요 · <b>🚃 따라감</b>: 뒤 장면 전부가 함께 밀려요.</li>
         <li><b>▶ 이 장면만</b> — 그 장면만 나오고 멈춰요. <b>다음 장면 ▶</b> 은 노래가 이어서 나와요.</li></ol></details>`;
@@ -111,6 +115,13 @@
       case 'fKeep': T.keep = T.keep === 'stay' ? 'follow' : 'stay'; return refreshView();
       case 'fCut': { if (p.locked) return; const i = sceneIdx(t), c = p.scenes[i]; if (!p.scenes[i + 1]) return U().toast('마지막 장면은 노래 끝까지예요'); if (t - c.s < .3) return U().toast('커서를 장면 안쪽으로 옮겨 주세요'); snap(); setBoundary(i + 1, t, T.keep); T.fsel = i; changed(); return U().toast(`✂️ 장면 ${i + 1} 여기서 끝`); }
       case 'fPrev': { if (p.locked) return; const i = sceneIdx(t); if (i < 1) return U().toast('첫 장면이에요'); snap(); setBoundary(i, t, T.keep); T.fsel = i - 1; changed(); return U().toast(`➡️ 장면 ${i} 을(를) 여기까지 늘렸어요`); }
+      case 'fNextHere': { if (p.locked) return; const i = sceneIdx(t), c = p.scenes[i]; if (!p.scenes[i + 1]) return U().toast('마지막 장면이에요 (뒤 장면이 없어요)'); if (t - c.s < .3) return U().toast('커서를 장면 안쪽으로 옮겨 주세요'); snap(); setBoundary(i + 1, t, 'stay'); T.fsel = i + 1; changed(); return U().toast(`⬅️ 장면 ${i + 2}이(가) 여기부터 시작해요`); }
+      case 'fMove': { if (p.locked) return; const i = T.fsel != null ? clamp(T.fsel, 0, p.scenes.length - 1) : sceneIdx(t), j = i + +v, A = p.scenes[i], B = p.scenes[j]; if (!B) return U().toast(+v < 0 ? '맨 앞 장면이에요' : '맨 뒤 장면이에요');
+        if (A.pin || B.pin) return U().toast(`🔒 ${A.pin ? i + 1 : j + 1}번이 고정돼 있어요 · 풀고 옮겨 주세요`, 3500);
+        snap(); const ta = [A.s, A.e], tb = [B.s, B.e]; p.scenes[i] = B; p.scenes[j] = A; B.s = ta[0]; B.e = ta[1]; A.s = tb[0]; A.e = tb[1];
+        p.scenes.forEach((o, k) => { if (o.reuse == null) return; if (o.reuse === i) o.reuse = j; else if (o.reuse === j) o.reuse = i; if (o.reuse === k) o.reuse = null; });
+        T.fsel = j; changed(); s.player.seek(A.s + .05); return U().toast(`↔ ${i + 1}번 그림을 ${j + 1}번 자리로 옮겼어요`); }
+      case 'fPin': { const i = +v, c = p.scenes[i]; if (!c) return; snap(); c.pin = !c.pin; changed(); return U().toast(c.pin ? `🔒 장면 ${i + 1} 고정 · 풀기 전까지 그림 · 시간이 안 바뀌어요` : `🔓 장면 ${i + 1} 고정을 풀었어요`); }
       case 'fBlank': return U().sheet('⬜ 빈칸 넣기', `<p class="muted">지금 위치(${fmt(t)})에 빈칸을 넣어요. 나중에 그림을 넣거나 검은 화면으로 둬요.</p><div class="chips">${[1, 2, 3, 4, 6, 8].map(n => chip('fBlankGo', n, false, n + '초')).join('')}</div>`);
       case 'fBlankGo': { U().sheetClose(); snap(); const i = sceneIdx(t), c = p.scenes[i], len = +v, oe = c.e; if (t - c.s < .2) return;
         const bl = { id: 'b' + Date.now().toString(36), s: t, e: +(t + len).toFixed(2), file: null, kind: null, thumb: '', prompt: '', name: '' }; c.e = t;
@@ -120,7 +131,8 @@
         T.fsel = i + 1; changed(); return U().toast(`⬜ ${len}초 빈칸을 넣었어요`); }
       case 'fTapGo': if (p.locked) return; snap(); T.tapMode = true; T.tapJ = sceneIdx(t) + 1; T.tapStack = []; refreshView(); return s.player.play();
       case 'fTap': { if (!s.player.playing()) return s.player.play(); const j = T.tapJ; if (!p.scenes[j]) { U().toast('🎉 마지막 장면까지 맞췄어요'); T.tapMode = false; return refreshView(); }
-        T.tapStack.push(JSON.stringify(p.scenes)); setBoundary(j, Math.max(0, t - .12), 'follow'); T.tapJ++; s.player.refresh(); U().save(); tlRender('fill'); const st = document.querySelector('.tapScene .muted b'); if (st) st.textContent = T.tapJ;
+        const g0 = pinSig(p); T.tapStack.push(JSON.stringify(p.scenes)); setBoundary(j, Math.max(0, t - .12), 'follow');
+        if (pinSig(p) !== g0) { p.scenes = JSON.parse(T.tapStack.pop()); T.tapMode = false; s.player.pause(); changed(); return U().toast('🔒 고정한 장면이 있어서 톡톡 넘기기를 멈췄어요 · 그 앞까지만 맞췄어요', 4000); } T.tapJ++; s.player.refresh(); U().save(); tlRender('fill'); const st = document.querySelector('.tapScene .muted b'); if (st) st.textContent = T.tapJ;
         if (el) { el.style.filter = 'brightness(1.4)'; setTimeout(() => el.style.filter = '', 120); } return; }
       case 'fTapUndo': { if (!T.tapStack || !T.tapStack.length) return; p.scenes = JSON.parse(T.tapStack.pop()); T.tapJ = Math.max(1, T.tapJ - 1); s.player.refresh(); U().save(); const prev = p.scenes[T.tapJ - 1]; tlRender('fill'); return s.player.play(Math.max(0, prev.s - .3)); }
       case 'fTapStop': T.tapMode = false; s.player.pause(); return changed();
@@ -324,8 +336,10 @@
       case 'tlRedo': return redo();
       case 'tlZoom': { const [m, d] = v.split(':'); const z = +d; T.pps[m] = z === 0 ? (T.pps[m] > 20 ? 16 : 40) : clamp(T.pps[m] * (z > 0 ? 1.5 : 1 / 1.5), 4, 120); if (m === 'fill' && z === 0) return refreshView(); return tlRender(m); }
     }
-    const r1 = fillAct(a, v, el); if (r1 !== null) return r1;
-    return Promise.resolve(cardAct(a, v)).then(r2 => r2 !== null ? r2 : editAct(a, v, el));
+    const p = P(), g0 = a === 'fPin' || !p ? null : pinSig(p), u0 = T.undo.length;
+    const guard = r => { if (g0 != null && T.undo.length > u0 && pinSig(P()) !== g0) { restore(T.undo.pop()); T.redo = []; changed(); U().toast(`🔒 고정한 장면이 바뀌어서 취소했어요 · ${T.keep === 'follow' ? '🚃 따라감이면 뒤 장면도 밀려요 → 📍 제자리로 바꾸거나 ' : ''}고정을 풀고 고쳐 주세요`, 4500); } return r; };
+    const r1 = fillAct(a, v, el); if (r1 !== null) return guard(r1);
+    return Promise.resolve(cardAct(a, v)).then(r2 => r2 !== null ? r2 : editAct(a, v, el)).then(guard);
   }
   /* 타임라인 칸 누르기 */
   function tapBlock(mode, key) {
@@ -354,7 +368,7 @@
   function afterRender() { const p = P(); if (!p) return; if (p.step === 3) tlFit('fill'); if (p.step === 5) tlFit('edit'); }
   document.addEventListener('click', e => { const b = e.target.closest('[data-tl]'); if (!b) return; const v = b.closest('.tlv'); if (!v || !P()) return; e.stopPropagation(); tapBlock(v.classList.contains('fill') ? 'fill' : 'edit', b.dataset.tl); }, true);
   g.addEventListener('resize', () => afterRender());
-  const NAMES = new Set(['tlUndo', 'tlRedo', 'tlZoom', 'fNud', 'fKeep', 'fCut', 'fPrev', 'fBlank', 'fBlankGo', 'fTapGo', 'fTap', 'fTapUndo', 'fTapStop', 'fPlay', 'fNext', 'fLyTap', 'fSnap',
+  const NAMES = new Set(['tlUndo', 'tlRedo', 'tlZoom', 'fNud', 'fKeep', 'fCut', 'fPrev', 'fBlank', 'fBlankGo', 'fTapGo', 'fTap', 'fTapUndo', 'fTapStop', 'fPlay', 'fNext', 'fLyTap', 'fSnap', 'fNextHere', 'fMove', 'fPin',
     'thSheet', 'enSheet', 'thOn', 'thDur', 'thSrc', 'thFile', 'thPos', 'thCol', 'thFont', 'thSave', 'enOn', 'enDur', 'enLogo',
     'edAdd', 'adPut', 'adSplit', 'adLib', 'edSplit', 'edTrim', 'trB', 'trCur', 'trOff', 'fKeep2', 'edDel', 'fScDel', 'edCap', 'capPick', 'capJoin', 'capSplit', 'edAudio', 'auFi', 'auCut', 'auCutA', 'auCutB', 'edFx', 'edEfx', 'edStk', 'edSfx', 'edMore', 'mSpeed', 'mFit', 'mZoom', 'mPos', 'mFi', 'mFo', 'mFreeze', 'mFlip', 'mMove', 'mDup']);
   MV.TL = { has: a => NAMES.has(a), reSheet, fillPart, editPart, act, change, onTime, afterRender, refreshView, reset() { T.undo = []; T.redo = []; T.fsel = null; T.esel = null; T.tapMode = false; T.cutA = null; } };

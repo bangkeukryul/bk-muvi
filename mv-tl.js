@@ -52,7 +52,7 @@
   function rows(mode) {
     const p = P(), pps = T.pps[mode], D = dur(), TT = mode === 'fill' ? total() : D, sc = p.scenes || [], selS = mode === 'fill' ? T.fsel : (T.esel && T.esel.k === 'sc' ? T.esel.i : -1);
     const H = mode === 'fill' ? 56 : 54;
-    let h = `<div class="tlrow" style="height:${H}px">${sc.map((s, i) => { const w = Math.max(4, (s.e - s.s) * pps - 2), long = s.kind === 'video' && (s.e - s.s) > 8.3 && !(s.speed && s.speed < 1);
+    let h = `<div class="tlrow" style="height:${H}px">${sc.map((s, i) => { const w = Math.max(4, (s.e - s.s) * pps - 2), long = s.kind === 'video' && (s.e - s.s) > (p.clipLen || 8) + .3 && !(s.speed && s.speed < 1);
       return `<div class="tb${i === selS ? ' sel' : ''}${mode === 'fill' && s.s >= D - .01 && TT > D + .05 ? ' over' : ''}" data-tl="sc:${i}" style="left:${s.s * pps}px;width:${w}px;${s.thumb ? `background-image:url(${s.thumb})` : `background-color:${s.file ? COL[i % COL.length] : '#334155'}`}"><span class="tn">${i + 1}${s.pin ? ' 🔒' : ''}</span><span class="tdur">${(s.e - s.s).toFixed(1)}초${long ? ' ⚠️' : ''}</span></div>`; }).join('')}`;
     if (p.thumb && p.thumb.on) h += `<div class="tb card" data-tl="th:0" style="left:0;width:${Math.max(18, p.thumb.dur * pps - 2)}px">🖼 썸네일</div>`;
     if (p.endc && p.endc.on) h += `<div class="tb card end" data-tl="en:0" style="left:${(D - p.endc.dur) * pps}px;width:${Math.max(18, p.endc.dur * pps - 2)}px">🏁 엔딩</div>`;
@@ -104,7 +104,7 @@
         <button type="button" data-a="fMoveTo" data-v="first"${dis || pn || !i ? ' disabled' : ''}>⏮ 맨 앞</button><button type="button" data-a="fMove" data-v="-1"${dis || pn || !i ? ' disabled' : ''}>◀ 앞으로</button><button type="button" data-a="fMove" data-v="1"${dis || pn || i >= last ? ' disabled' : ''}>뒤로 ▶</button><button type="button" data-a="fMoveTo" data-v="last"${dis || pn || i >= last ? ' disabled' : ''}>맨 뒤 ⏭</button></div>
       ${clip ? `<div class="clipNote muted">📋 ${clip.no}번 장면을 복사해 뒀어요 · 커서를 넣을 곳에 두고 「📋 붙여넣기」 · <button type="button" class="lnk" data-a="fClipOff">복사 취소</button></div>` : ''}
       <div class="fsc">
-        <div class="hd"><b>장면 ${i + 1}</b>${c.pin ? ' <span class="cpd pin">🔒 고정</span>' : ''} <span class="muted">${fmt(c.s)} ~ ${fmt(c.e)} · ${(c.e - c.s).toFixed(1)}초</span>${c.kind === 'video' && (c.e - c.s) > 8.3 ? ' <span class="cpd">⚠️ 8초 넘음 → 영상이 다시 반복돼요</span>' : ''}</div>
+        <div class="hd"><b>장면 ${i + 1}</b>${c.pin ? ' <span class="cpd pin">🔒 고정</span>' : ''} <span class="muted">${fmt(c.s)} ~ ${fmt(c.e)} · ${(c.e - c.s).toFixed(1)}초</span>${c.kind === 'video' && (c.e - c.s) > (p.clipLen || 8) + .3 ? ` <span class="cpd">⚠️ ${p.clipLen || 8}초 넘음 → 영상이 다시 반복돼요</span>` : ''}</div>
         <div class="ly">🎤 ${lyr.length ? esc(lyr.join(' / ')) : '<span class="muted">(반주)</span>'}</div>
         <div class="row three"><button class="btn sm main" data-a="fPrevSc">◀ 이전 장면</button><button class="btn sm main" data-a="fPlay">▶ 이 장면만</button><button class="btn sm main" data-a="fNext">다음 장면 ▶</button></div>
         <div class="row"><button class="btn sm" data-a="fLyTap">👆 가사 톡</button></div>

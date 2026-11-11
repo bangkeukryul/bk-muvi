@@ -354,7 +354,7 @@
       <details class="grp" open><summary>🧑 ① 주인공 ${lk.heroLock ? '<span class="cpd ok">🔒</span>' : ''}</summary>${heroBox(p)}</details>
       <details class="grp" open><summary>🛠 ② 만드는 방법 · 분위기</summary>
         <div class="chips">${chip('mode', 'image', !vid, '🖼 그림 · 사진 (기본 · ChatGPT)')}${chip('mode', 'video', vid, '🎬 영상 (Flow)')}</div>
-        ${vid ? `<div class="field"><label>⏱ 영상 길이</label><div class="chips">${[8, 16, 24, 30].map(v => chip('clipLen', v, p.clipLen === v, v + '초')).join('')}</div></div>`
+        ${vid ? `<div class="field"><label>⏱ 영상 길이</label><div class="chips">${[8, 10, 16, 20, 24, 30].map(v => chip('clipLen', v, p.clipLen === v, v + '초')).join('')}</div></div>`
           : `<div class="field"><label>🖼 그림 장 수</label><div class="row cnt"><button class="btn sm" data-a="picN" data-v="-1"${dis}>－</button><b>${sc.length}장</b><button class="btn sm" data-a="picN" data-v="1"${dis}>＋</button><span class="muted">한 장 약 ${(p.song.dur / Math.max(1, sc.length)).toFixed(1)}초 · 기본 최대 20장${sc.some(x => x.reuse != null) ? ` · ♻ ${sc.filter(x => x.reuse != null).length}칸 다시 쓰기 → 새로 그릴 그림 ${sc.length - sc.filter(x => x.reuse != null).length}장` : ''}</span></div></div>`}
         <div class="field"><label>🎨 그림 느낌</label><div class="chips">${STYLES.map(s2 => chip('style', s2, lk.style === s2, s2)).join('')}</div></div>
         <div class="field"><label>💭 노래 분위기</label><input type="text" id="fMood" value="${esc(lk.mood)}" placeholder="예: 봄 햇살, 그리움, 따뜻한 재회"></div>
@@ -768,7 +768,7 @@
       case 'ratio': p.ratio = v; await S.player.setProject(p, S.song); save(); return render();
       /* 2 */
       case 'clipLen': if (p.locked) return toast('🔒 잠겨 있어요'); if (p.scenes.some(s => s.file) && !confirm('장면 길이를 바꾸면 장면 칸 수가 바뀌어요. 넣은 영상은 앞에서부터 그대로 둘게요. 바꿀까요?')) return; p.clipLen = +v; p.scenes = MV.planScenes(p); save(); return render();
-      case 'mode': { if (p.locked) return toast('🔒 잠겨 있어요'); const was = p.mode; p.mode = v; if (v === 'video' && ![8, 16, 24, 30].includes(p.clipLen)) p.clipLen = 8; const n0 = p.scenes.length; const nw = MV.planScenes(Object.assign({}, p, { scenes: [] })).length;
+      case 'mode': { if (p.locked) return toast('🔒 잠겨 있어요'); const was = p.mode; p.mode = v; if (v === 'video' && ![8, 10, 16, 20, 24, 30].includes(p.clipLen)) p.clipLen = 8; const n0 = p.scenes.length; const nw = MV.planScenes(Object.assign({}, p, { scenes: [] })).length;
         if (nw < n0 && p.scenes.slice(nw).some(x => x.file) && !confirm(`장면이 ${n0}개 → ${nw}개로 줄어요. 뒤쪽에 넣은 그림 · 영상은 빠져요. 바꿀까요?`)) { p.mode = was; return render(); } p.scenes = MV.planScenes(p); save(); return render(); }
       case 'picN': { if (p.locked) return toast('🔒 잠겨 있어요'); const n = clamp(p.scenes.length + +v, 2, 200); if (n < p.scenes.length && p.scenes[p.scenes.length - 1].file && !confirm(`${p.scenes.length}번 칸의 그림이 빠져요. 줄일까요?`)) return; p.picN = n; p.scenes = MV.planScenes(p); save(); render(); if (n > 20 && +v > 0) toast('⚠️ 20장이 넘으면 ChatGPT 한도에 걸릴 수 있어요 · 후렴은 ♻ 다시 쓰기를 써 보세요', 4500); return; }
       case 'gptOpen': return g.open(GPT_URL, '_blank');

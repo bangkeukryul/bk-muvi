@@ -327,3 +327,20 @@ header.top button{border:0;border-radius:10px;padding:6px 10px;background:#fffff
 .lk .bd{flex:1;min-width:0}.lk .hd{font-weight:900;font-size:.9rem}.lk .hd .muted{font-weight:500;font-size:.75rem}
 .lk .ly{font-size:.8rem;color:#6d28d9;margin:2px 0;word-break:keep-all}.lk .pr{font-size:.75rem;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lk .row{margin-top:4px;gap:6px}
+/* ═════════ 🖥 PC 넓은 화면 (1024px 이상) ═════════ */
+body.pc .wrap{max-width:1320px;padding:0 20px 80px}
+body.pc .modes{grid-template-columns:repeat(auto-fill,minmax(360px,1fr))}
+body.pc .pcGrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,440px);gap:18px;align-items:start}
+body.pc .pcMain{min-width:0}
+body.pc .pvStick{display:none}
+body.pc #pcSide{position:sticky;top:110px;display:flex;flex-direction:column;gap:10px}
+body.pc #pcPv{background:#fff;border:1.5px solid var(--line);border-radius:18px;padding:10px}
+body.pc #pcPv .pv canvas{max-height:58vh;width:auto;max-width:100%}
+body.pc #pcPv .pv.v916 canvas{height:58vh}
+body.pc .pcNoPv{padding:40px 12px;text-align:center;color:var(--sub);font-weight:700}
+body.pc .pcSteps{display:grid;gap:6px}
+body.pc .pcSteps button{border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:8px 12px;text-align:left;font-weight:800;color:var(--p);cursor:pointer}
+body.pc .pcSteps button.on{background:var(--p);color:#fff;border-color:var(--p)}
+body.pc .pcKeys{font-size:.75rem;margin:0}
+body.pc .cutRow button,body.pc .navRow button,body.pc .btn{cursor:pointer}
+body.pc .sheetBox{max-width:760px;border-radius:20px;margin-bottom:4vh}

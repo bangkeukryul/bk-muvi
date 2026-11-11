@@ -161,10 +161,27 @@
           <small>${status(s.n) ? '<span class="stt">' + esc(status(s.n)) + '</span> · ' : ''}${DESC[s.n]}</small>
           ${s.n === nx ? '<i class="todoTag">👉 지금 할 차례</i>' : ''}</button>`).join('')}</div>`;
   }
+  /* ═════════ 🖥 PC 넓은 화면 (1024px 이상이면 저절로) ═════════ */
+  const isPC = () => g.matchMedia && g.matchMedia('(min-width: 1024px)').matches;
+  function pcMark() { document.body.classList.toggle('pc', isPC()); }
+  pcMark(); let pcWas = isPC();
+  g.addEventListener('resize', () => { pcMark(); if (isPC() !== pcWas) { pcWas = isPC(); if (S.p && S.view !== 'hub' && $('stage') && $('stage').innerHTML) renderStage(); } });
+  function pcSide(n) {
+    return `<aside id="pcSide"><div id="pcPv">${S.p.song ? '' : '<div class="pcNoPv">🎵 노래를 넣으면 여기에 미리 보기가 나와요</div>'}</div>
+      <div class="pcSteps">${STAGES.map(s => `<button type="button" class="${s.n === n ? 'on' : ''}" data-a="open" data-v="${s.n}">${done(s.n) ? '✅' : s.e} ${s.n}. ${s.t}</button>`).join('')}</div>
+      <p class="muted pcKeys">⌨️ 스페이스 = 재생/멈춤 · ← → = 0.1초 (Shift = 1초) · Ctrl+Z = 되돌리기</p></aside>`;
+  }
+  g.addEventListener('keydown', e => {
+    if (!isPC() || !S.p || !S.player || S.view === 'hub') return; const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    if (e.code === 'Space') { e.preventDefault(); return S.player.toggle(); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); const d = (e.shiftKey ? 1 : .1) * (e.key === 'ArrowLeft' ? -1 : 1), T = S.player.total ? S.player.total() : (S.p.song ? S.p.song.dur : 0); return S.player.seek(clamp(S.player.time() + d, 0, T)); }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z') && (S.p.step === 3 || S.p.step === 5)) { e.preventDefault(); return MV.TL.act(e.shiftKey ? 'tlRedo' : 'tlUndo'); }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y') && (S.p.step === 3 || S.p.step === 5)) { e.preventDefault(); return MV.TL.act('tlRedo'); }
+  });
   function renderStage() {
     const p = S.p, n = p.step, st = STAGES[n - 1], el = $('stage');
     const keep = {}; el.querySelectorAll('details').forEach(d => { const k = (d.querySelector('summary') || {}).textContent; if (k) keep[k.replace(/\d+/g, '#')] = d.open; });
-    el.innerHTML = `<div class="stHead"><button class="btn sm ghost" data-a="hub">◀ 전체 단계</button><div class="stT"><span>${n} / ${STAGES.length}</span><b>${st.e} ${st.h}</b></div></div><div class="stBody">${BODY[n]()}</div>
+    el.innerHTML = `<div class="stHead"><button class="btn sm ghost" data-a="hub">◀ 전체 단계</button><div class="stT"><span>${n} / ${STAGES.length}</span><b>${st.e} ${st.h}</b></div></div>${isPC() ? '<div class="pcGrid"><div class="pcMain">' : ''}<div class="stBody">${BODY[n]()}</div>
       <div class="stNav">${n > 1 ? `<button class="btn ghost" data-a="open" data-v="${n - 1}">◀ ${STAGES[n - 2].e} ${STAGES[n - 2].t}</button>` : '<span></span>'}${n < STAGES.length ? `<button class="btn main" data-a="open" data-v="${n + 1}" data-next="1">다음: ${STAGES[n].e} ${STAGES[n].t} ▶</button>` : `<button class="btn main" data-a="hub">✅ 전체 단계로</button>`}</div>`;
     /* 작은 단계(소단계): data-sub 묶음이 2개 이상이면 위에 번호 버튼 · 하나씩 보여 주기 */
     const subs = [...el.querySelectorAll('.stBody [data-sub]')];
@@ -176,7 +193,8 @@
       subs.forEach((d, i) => { d.classList.toggle('hide', i !== k); if (i < subs.length - 1) { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn big subnext'; b.dataset.a = 'sub'; b.dataset.v = i + 1; b.textContent = `다음: ${subs[i + 1].dataset.sub} ▶`; d.appendChild(b); } });
     }
     el.querySelectorAll('details').forEach(d => { const k = ((d.querySelector('summary') || {}).textContent || '').replace(/\d+/g, '#'); if (k in keep) d.open = keep[k]; });
-    const slot = el.querySelector('[data-pv]');
+    if (isPC()) { const gd = el.querySelector('.pcGrid'), mn = el.querySelector('.pcMain'), nav = el.querySelector('.stNav'); if (gd && mn) { if (nav) mn.appendChild(nav); gd.insertAdjacentHTML('beforeend', pcSide(n)); } }
+    const slot = isPC() ? (p.song ? $('pcPv') : null) : el.querySelector('[data-pv]');
     if (slot && p.song) { slot.appendChild(S.pv); S.pv.querySelector('#pvWrap').classList.toggle('v916', p.ratio === '9:16'); S.player.refresh(); S.player.draw(); onTime(S.player.time()); }
     else if (S.player) { S.player.pause(); if (S.pv.parentNode) S.pv.remove(); }
     MV.TL.afterRender();

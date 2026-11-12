@@ -1,4 +1,4 @@
-/* mv-render.js — BK뮤비 화면 그리기 · 미리 보기 재생 · MP4 내보내기
+/* mv-render.js — BK뮤드 화면 그리기 · 미리 보기 재생 · MP4 내보내기
  *  - 장면(영상/사진) + 장면 넘김 + 노래방 자막 + 효과(제목 · 페이드 · 필름 느낌)
  *  - 휴대폰 메모리를 아끼려고 지금 장면 앞뒤 몇 개만 불러 둠
  */
@@ -107,12 +107,29 @@
     if (best < 0) best = Math.round(mid);
     return [text.slice(0, best).trim(), text.slice(best).trim()].filter(Boolean);
   }
+  /* 🎭 드라마 자막 (Bang Song Studio에서): 상자 · 테두리 · 글자 선명도 · 위치(%) · 줄바꿈 그대로 */
+  function boxCap(x, W, H, p, c, fade) {
+    const C = p.cap, base = Math.round(Math.min(W, H) * .058 * (C.size || 1)), maxW = W * .86;
+    x.save(); x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineJoin = 'round';
+    let rows = String(c.t).split('\n').map(s => s.trim()).filter(Boolean); if (rows.length === 1) rows = split2(x, rows[0], base, maxW);
+    let f = base; for (const r0 of rows) f = Math.min(f, fitFont(x, r0, base, maxW)); x.font = `${C.bold === false ? 700 : 900} ${f}px ${CF}`;
+    const lh = f * 1.3, n = rows.length, yc = H * (C.y || .74), top = yc - (n * lh) / 2;
+    const tw = Math.max(...rows.map(r0 => x.measureText(r0).width)), padX = f * .7, padY = f * .35;
+    if ((C.bga || 0) > 0) { x.globalAlpha = (C.bga || 0) * fade; x.fillStyle = C.bg || '#000'; const bx = W / 2 - tw / 2 - padX, by = top - padY, bw = tw + padX * 2, bh = n * lh + padY * 2, rr = f * .35;
+      x.beginPath(); if (x.roundRect) x.roundRect(bx, by, bw, bh, rr); else x.rect(bx, by, bw, bh); x.fill();
+      if (C.frame) { x.globalAlpha = .9 * fade; x.lineWidth = Math.max(2, f * .07); x.strokeStyle = C.frame; x.stroke(); } }
+    rows.forEach((r0, i) => { const yy = top + lh * (i + .5);
+      if ((C.ol || 0) > 0) { x.globalAlpha = fade * (C.alpha || 1); x.lineWidth = Math.max(2, f * .2 * C.ol); x.strokeStyle = 'rgba(0,0,0,.9)'; x.strokeText(r0, W / 2, yy); }
+      x.globalAlpha = fade * (C.alpha || 1); x.fillStyle = C.color || '#fff'; x.fillText(r0, W / 2, yy); });
+    x.restore();
+  }
   function drawCaps(x, W, H, p, t, CL) {
     const st = p.cap.style; if (st === 'none') return; CF = g.BKFX && p.cap.font ? g.BKFX.fam(p.cap.font) : FONT;
     CL = CL || capLines(p);
     let k = -1; for (let j = CL.length - 1; j >= 0; j--) if (t >= CL[j].s - .05 && t < CL[j].e) { k = j; break; }
     if (k < 0) return;
     const c = CL[k], base = Math.round(Math.min(W, H) * .072 * (p.cap.size || 1)), maxW = W * .9;
+    if (st === 'box') return boxCap(x, W, H, p, c, clamp((t - c.s + .05) / .15, 0, 1) * clamp((c.e - t) / .15, 0, 1));
     const y0 = p.cap.pos === 'top' ? H * .14 : p.cap.pos === 'middle' ? H * .5 : H * (p.ratio === '9:16' ? .78 : .86);
     const fade = clamp((t - c.s + .05) / .15, 0, 1) * clamp((c.e - t) / .15, 0, 1);
     x.save(); x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineJoin = 'round';

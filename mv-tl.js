@@ -1,4 +1,4 @@
-/* mv-tl.js — BK뮤비 타임라인 화면
+/* mv-tl.js — BK뮤드 타임라인 화면
  *  ① 채우기 (BK쇼츠 「음악 맞추기」 모양): 커서 · ±1초/0.1초 · ✂️ 여기서 끝 · ➡️ 앞 장면 여기까지 · ⬜ 빈칸 · 🎵 톡톡 넘기기 · 제자리/따라감 · 사진 줄
  *  ⑤ 다듬기 (BK에딧 편집 모양): 가운데 커서 · 장면/노래/자막/효과 줄 · 넣기 · 분할 · 자르기 · 삭제 · 자막 · 오디오 · 효과 · 더 보기
  *  공통: ↩ 되돌리기 / ↪ 다시 · 🖼 썸네일 · 🏁 엔딩 카드
@@ -224,7 +224,7 @@
       case 'thPos': th.pos = v; return changed();
       case 'thCol': th.color = v; return changed();
       case 'thFont': th.font = v; try { await document.fonts.load(`900 40px ${g.BKFX.fam(v)}`, th.title || p.title || '가'); } catch (e) { /* 기본 */ } return changed();
-      case 'thSave': { U().toast('🖼 만드는 중…'); const [W, H] = p.ratio === '9:16' ? [1080, 1920] : [1280, 720], b = await MV.thumbImage(p, W, H); const u = URL.createObjectURL(b), x = document.createElement('a'); x.href = u; x.download = (p.title || 'BK뮤비') + '_썸네일.jpg'; document.body.appendChild(x); x.click(); x.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); return U().toast('⬇ 썸네일을 휴대폰에 저장했어요', 3500); }
+      case 'thSave': { U().toast('🖼 만드는 중…'); const [W, H] = p.ratio === '9:16' ? [1080, 1920] : [1280, 720], b = await MV.thumbImage(p, W, H); const u = URL.createObjectURL(b), x = document.createElement('a'); x.href = u; x.download = (p.title || 'BK뮤드') + '_썸네일.jpg'; document.body.appendChild(x); x.click(); x.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); return U().toast('⬇ 썸네일을 휴대폰에 저장했어요', 3500); }
       case 'enOn': snap(); en.on = v === '1'; return changed();
       case 'enDur': snap(); en.dur = +v; return changed();
       case 'enLogo': en.logo = v === '1'; return changed();

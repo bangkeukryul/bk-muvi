@@ -1,4 +1,4 @@
-/* mv-ui.js — BK뮤비 화면: 내 뮤비 목록 · 큰 단계 6개 (노래 만들기 → 노래 넣기 → 장면 → 잠금 → 자막 → 최종 편집)
+/* mv-ui.js — BK뮤드 화면: 내 뮤비 목록 · 큰 단계 6개 (노래 만들기 → 노래 넣기 → 장면 → 잠금 → 자막 → 최종 편집)
  *  - 지금 단계만 펼쳐 보이고, 다 하면 「✅ 다음 단계로 ▶」
  *  - 바꿀 때마다 휴대폰에 자동 저장 (IndexedDB 'bk-muvi')
  */
@@ -39,18 +39,18 @@
   let INST = null;
   const standalone = () => { try { return g.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (e) { return false; } };
   g.addEventListener('beforeinstallprompt', e => { e.preventDefault(); INST = e; if (!S.p) installBox(); });
-  g.addEventListener('appinstalled', () => { INST = null; toast('📲 설치했어요 · 홈 화면의 BK뮤비 아이콘으로 여세요', 4000); installBox(); });
+  g.addEventListener('appinstalled', () => { INST = null; toast('📲 설치했어요 · 홈 화면의 BK뮤드 아이콘으로 여세요', 4000); installBox(); });
   async function installBox() {
     const el = $('instBox'); if (!el) return;
     if (standalone()) { el.innerHTML = ''; return; }
     let have = false; try { if (navigator.getInstalledRelatedApps) have = (await navigator.getInstalledRelatedApps()).length > 0; } catch (e) { /* 모름 */ }
-    if (INST) { el.innerHTML = `<button class="btn ok big" data-a="install">📲 BK뮤비 앱 설치하기</button>`; return; }
-    el.innerHTML = `<details class="note"${have ? ' open' : ''}><summary><b>📲 ${have ? '이 휴대폰에 BK뮤비 앱이 이미 있어요' : '설치 버튼이 안 보이나요?'}</b></summary>
+    if (INST) { el.innerHTML = `<button class="btn ok big" data-a="install">📲 BK뮤드 앱 설치하기</button>`; return; }
+    el.innerHTML = `<details class="note"${have ? ' open' : ''}><summary><b>📲 ${have ? '이 휴대폰에 BK뮤드 앱이 이미 있어요' : '설치 버튼이 안 보이나요?'}</b></summary>
       <p style="margin:6px 0">크롬은 앱이 <b>이미 설치돼 있으면</b> 설치 버튼을 보여 주지 않고, 덮어쓰기도 안 돼요. 홈 화면에서 지운 건 <b>아이콘만</b> 지운 거라 앱은 남아 있어요. 아래처럼 앱을 지우면 여기에 <b>📲 설치하기</b> 버튼이 나와요.</p>
       <ol style="padding-left:20px;margin:4px 0">
-        <li>홈 화면에서 <b>위로 쓸어 올려 「앱스 화면」(모든 앱)</b>을 여세요 → <b>BK뮤비</b> 아이콘을 길게 누르기 → <b>설치 삭제</b></li>
-        <li>안 보이면: <b>설정 → 애플리케이션 → 맨 위 🔍 돋보기</b>에 <b>BK뮤비</b> 입력 → 누르기 → <b>삭제</b></li>
-        <li>그래도 없으면: 크롬에서 「클릭하여 앱 열기」로 앱을 연 뒤 <b>최근 앱 버튼(|||)</b> → BK뮤비 화면 위의 <b>작은 아이콘</b> 누르기 → <b>애플리케이션 정보 → 삭제</b></li>
+        <li>홈 화면에서 <b>위로 쓸어 올려 「앱스 화면」(모든 앱)</b>을 여세요 → <b>BK뮤드</b> 아이콘을 길게 누르기 → <b>설치 삭제</b></li>
+        <li>안 보이면: <b>설정 → 애플리케이션 → 맨 위 🔍 돋보기</b>에 <b>BK뮤드</b> 입력 → 누르기 → <b>삭제</b></li>
+        <li>그래도 없으면: 크롬에서 「클릭하여 앱 열기」로 앱을 연 뒤 <b>최근 앱 버튼(|||)</b> → BK뮤드 화면 위의 <b>작은 아이콘</b> 누르기 → <b>애플리케이션 정보 → 삭제</b></li>
         <li>크롬을 닫았다가 이 주소를 다시 열면 <b>📲 설치하기</b> 버튼이 나와요</li>
       </ol>
       <p class="muted" style="margin:4px 0">✅ 라이선스 · 카드함 · 만든 뮤비는 크롬 안에 있어서 앱을 지워도 그대로예요. ⚠️ 크롬 「쿠키 및 사이트 데이터 삭제」는 하지 마세요.</p></details>`;
@@ -70,25 +70,25 @@
   /* ═════════ 내 뮤비 목록 ═════════ */
   async function home() {
     if (S.player) { S.player.stop(); }
-    MV.dropAll(); S.p = null; $('title').textContent = '🎬 BK뮤비'; $('homeBtn').classList.add('hide');
+    MV.dropAll(); S.p = null; setTitle(null); $('homeBtn').classList.add('hide');
     const root = $('app');
-    if (!isAdmin()) { root.innerHTML = `<div class="gate"><div class="e">🛠</div><h2>관리자 전용 (준비 중)</h2><p class="muted">BK뮤비는 아직 관리자만 쓸 수 있어요.<br>다른 BK 앱에서 관리자 모드를 켠 휴대폰에서 열어 주세요.</p></div>`; return; }
+    if (!isAdmin()) { root.innerHTML = `<div class="gate"><div class="e">🛠</div><h2>관리자 전용 (준비 중)</h2><p class="muted">BK뮤드는 아직 관리자만 쓸 수 있어요.<br>다른 BK 앱에서 관리자 모드를 켠 휴대폰에서 열어 주세요.</p></div>`; return; }
     const list = await MV.listProjects().catch(() => []), PER = 10, pages = Math.max(1, Math.ceil(list.length / PER));
     S.page = clamp(S.page || 1, 1, pages);
     const cont = list.find(p => !p.exported) || null;   // 가장 최근에 만지던 (아직 저장 안 한) 뮤비
     const stName = p => { const n = clamp(p.step || 1, 1, STAGES.length); return STAGES[n - 1].e + ' ' + STAGES[n - 1].t; };
     const shown = list.slice((S.page - 1) * PER, S.page * PER);
     root.innerHTML = `
-      <div class="note blue" style="margin-top:14px">🎬 <b>노래 한 곡 → 뮤직비디오 한 편</b><br>① 🎼 노래 만들기 → ② 🎵 노래 넣기 → ③ 🎬 노래 · 장면 맞추기 → ④ ✨ 효과 → ⑤ ✂️ 최종 편집 순서로 차례차례 만들어요.</div>
+      <div class="note blue" style="margin-top:14px">🎬 <b>BK뮤드 — 오늘은 무엇을 만들까요?</b><br>🎵 <b>뮤직비디오</b>: 노래 한 곡 → 뮤직비디오 한 편 · 🎭 <b>드라마</b>: Flow 클립 여러 개 → 드라마 한 편<br><span class="muted">🎵 뮤직비디오 순서:</span> ① 🎼 노래 만들기 → ② 🎵 노래 넣기 → ③ 🎬 노래 · 장면 맞추기 → ④ ✨ 효과 → ⑤ ✂️ 최종 편집 순서로 차례차례 만들어요.</div>
       <div id="instBox"></div>
-      <button class="btn main big homeBig" data-a="newP">＋ 새 뮤비 만들기<small>노래 만들기부터 새로 시작해요</small></button>
+      <button class="btn main big homeBig" data-a="newP">＋ 새로 만들기<small>🎵 뮤직비디오 · 🎭 드라마 중에서 골라요</small></button>
       ${cont ? `<button class="btn pink big homeBig" data-a="openP" data-v="${cont.id}">▶ 이어 만들기<small>「${esc(cont.title || '제목 없음')}」 · ${stName(cont)} 단계부터</small></button>` : ''}
-      ${list.length ? `<h3 style="margin:18px 0 0">📂 내 뮤비 <span class="muted">${list.length}개</span></h3>` : ''}
+      ${list.length ? `<h3 style="margin:18px 0 0">📂 내 작품 <span class="muted">${list.length}개</span></h3>` : ''}
       <div class="plist">${list.length ? shown.map(p => `
-        <div class="pitem"><div style="font-size:1.6rem">${p.exported ? '✅' : p.locked ? '🔒' : '🎬'}</div>
+        <div class="pitem"><div style="font-size:1.6rem">${p.kind === 'drama' ? '🎭' : '🎵'}${p.exported ? '<small>✅</small>' : ''}</div>
           <div class="bd"><b>${esc(p.title || '(제목 없음)')}</b><span class="muted">${p.song ? fmt0(p.song.dur) + ' · ' : ''}장면 ${(p.scenes || []).filter(s => s.file).length}/${(p.scenes || []).length} · ${p.exported ? '완성' : stName(p) + ' 단계'} · ${new Date(p.at).toLocaleDateString('ko-KR')}</span></div>
           <button class="btn sm main" data-a="openP" data-v="${p.id}">열기</button>
-          <button class="btn sm ghost" data-a="delP" data-v="${p.id}">🗑</button></div>`).join('') : '<p class="muted" style="text-align:center">아직 만든 뮤비가 없어요.</p>'}</div>
+          <button class="btn sm ghost" data-a="delP" data-v="${p.id}">🗑</button></div>`).join('') : '<p class="muted" style="text-align:center">아직 만든 작품이 없어요.</p>'}</div>
       ${pages > 1 ? `<div class="pager">${S.page > 1 ? `<button data-a="page" data-v="${S.page - 1}">◀</button>` : ''}${Array.from({ length: pages }, (_, i) => `<button class="${i + 1 === S.page ? 'on' : ''}" data-a="page" data-v="${i + 1}">${i + 1}</button>`).join('')}${S.page < pages ? `<button data-a="page" data-v="${S.page + 1}">▶</button>` : ''}</div>` : ''}`;
     installBox();
   }
@@ -134,6 +134,7 @@
   }
 
   function done(n) {
+    if (g.BKDRAMA && S.p && S.p.kind === 'drama') { const r = g.BKDRAMA.done(S.p, n); if (r !== undefined) return r; }
     const p = S.p, sc = p.scenes || [];
     if (n === 1) return !!(p.song || (p.mk && p.mk.out && p.mk.out.lyrics));
     if (n === 2) return !!(p.song && (p.lines || []).length);
@@ -142,6 +143,7 @@
     if (n === 5) return !!p.exported;
   }
   function status(n) {
+    if (g.BKDRAMA && S.p && S.p.kind === 'drama') { const r = g.BKDRAMA.status(S.p, n); if (r !== undefined) return r; }
     const p = S.p, sc = p.scenes || [], L = p.lines || [];
     if (n === 1) return p.mk && p.mk.out && p.mk.out.title ? '🎵 ' + p.mk.out.title : (p.song ? '건너뜀' : '');
     if (n === 2) return p.song ? `${fmt0(p.song.dur)} · 가사 ${L.length}줄` : '';
@@ -152,6 +154,7 @@
   const DESC = { 1: '장르 · 주제 · 이야기 → AI 가사 · 스타일 → 수노에서 노래 만들기', 2: '노래(MP3) · 가사 · 화면 모양 · 장면 그림 1~N 넣기', 3: '① 자막(가사 톡톡) · ② 화면(장면 길이 · 순서) · ③ 잠금(장면마다 확인하고 고정)', 4: '장면 전환 · 색감 · 화면 효과 · 스티커 · 효과음 · 제목', 5: '화면 · 음악 · 자막 · 효과 줄로 다듬고 MP4 저장' };
   function nextTodo() { for (const s of STAGES) if (!done(s.n)) return s.n; return STAGES.length; }
   function renderHub() {
+    if (g.BKDRAMA) g.BKDRAMA.labels(STAGES, DESC, S.p);
     const p = S.p, nx = nextTodo(), nd = STAGES.filter(s => done(s.n)).length;
     $('hub').innerHTML = `
       <div class="hubTop"><input type="text" id="fTitle2" value="${esc(p.title)}" placeholder="🏷 뮤비 제목"><div class="prog"><i style="width:${Math.round(nd / STAGES.length * 100)}%"></i></div><span class="muted">${STAGES.length}단계 중 ${nd}단계 끝 · 위에서부터 차례로 해요</span></div>
@@ -167,7 +170,7 @@
   pcMark(); let pcWas = isPC();
   g.addEventListener('resize', () => { pcMark(); if (isPC() !== pcWas) { pcWas = isPC(); if (S.p && S.view !== 'hub' && $('stage') && $('stage').innerHTML) renderStage(); } });
   function pcSide(n) {
-    return `<aside id="pcSide"><div id="pcPv">${S.p.song ? '' : '<div class="pcNoPv">🎵 노래를 넣으면 여기에 미리 보기가 나와요</div>'}</div>
+    return `<aside id="pcSide"><div id="pcPv">${S.p.song ? '' : `<div class="pcNoPv">${S.p.kind === 'drama' ? '🎞 클립을 넣으면' : '🎵 노래를 넣으면'} 여기에 미리 보기가 나와요</div>`}</div>
       <div class="pcSteps">${STAGES.map(s => `<button type="button" class="${s.n === n ? 'on' : ''}" data-a="open" data-v="${s.n}">${done(s.n) ? '✅' : s.e} ${s.n}. ${s.t}</button>`).join('')}</div>
       <p class="muted pcKeys">⌨️ 스페이스 = 재생/멈춤 · ← → = 0.1초 (Shift = 1초) · Ctrl+Z = 되돌리기</p></aside>`;
   }
@@ -179,9 +182,10 @@
     if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y') && (S.p.step === 3 || S.p.step === 5)) { e.preventDefault(); return MV.TL.act('tlRedo'); }
   });
   function renderStage() {
+    if (g.BKDRAMA) g.BKDRAMA.labels(STAGES, DESC, S.p);
     const p = S.p, n = p.step, st = STAGES[n - 1], el = $('stage');
     const keep = {}; el.querySelectorAll('details').forEach(d => { const k = (d.querySelector('summary') || {}).textContent; if (k) keep[k.replace(/\d+/g, '#')] = d.open; });
-    el.innerHTML = `<div class="stHead"><button class="btn sm ghost" data-a="hub">◀ 전체 단계</button><div class="stT"><span>${n} / ${STAGES.length}</span><b>${st.e} ${st.h}</b></div></div>${isPC() ? '<div class="pcGrid"><div class="pcMain">' : ''}<div class="stBody">${BODY[n]()}</div>
+    el.innerHTML = `<div class="stHead"><button class="btn sm ghost" data-a="hub">◀ 전체 단계</button><div class="stT"><span>${n} / ${STAGES.length}</span><b>${st.e} ${st.h}</b></div></div>${isPC() ? '<div class="pcGrid"><div class="pcMain">' : ''}<div class="stBody">${(g.BKDRAMA && g.BKDRAMA.body(S.p, n)) || BODY[n]()}</div>
       <div class="stNav">${n > 1 ? `<button class="btn ghost" data-a="open" data-v="${n - 1}">◀ ${STAGES[n - 2].e} ${STAGES[n - 2].t}</button>` : '<span></span>'}${n < STAGES.length ? `<button class="btn main" data-a="open" data-v="${n + 1}" data-next="1">다음: ${STAGES[n].e} ${STAGES[n].t} ▶</button>` : `<button class="btn main" data-a="hub">✅ 전체 단계로</button>`}</div>`;
     /* 작은 단계(소단계): data-sub 묶음이 2개 이상이면 위에 번호 버튼 · 하나씩 보여 주기 */
     const subs = [...el.querySelectorAll('.stBody [data-sub]')];
@@ -201,17 +205,20 @@
     if (n === 5) showLast();
     if (n === 3) tapShow(S.player ? S.player.time() : 0);
   }
+  /* 상단 바: 🎬 + 🎵 뮤직비디오 / 🎭 드라마 표시 + 제목 */
+  function setTitle(p) { const d = p && p.kind === 'drama'; $('title').innerHTML = p ? `🎬 <span class="kTag ${d ? 'dr' : 'mv'}">${d ? '🎭 드라마' : '🎵 뮤직비디오'}</span> <span class="tName">${esc(p.title || '제목 없음')}</span>` : '🎬 BK뮤드'; }
   function render() {
     const p = S.p; if (!p) return;
-    $('title').textContent = '🎬 ' + (p.title || 'BK뮤비');
+    setTitle(p);
     const hub = S.view !== 'stage';
     $('hub').classList.toggle('hide', !hub); $('stage').classList.toggle('hide', hub);
     if (hub) { if (S.player) S.player.pause(); if (S.pv && S.pv.parentNode) S.pv.remove(); renderHub(); } else renderStage();
   }
   function go(n) {
     const p = S.p; n = +n;
-    if (n > 2 && !p.song) { toast('🎵 먼저 노래를 넣어 주세요'); n = 2; }
-    if (n === 3 && !p.scenes.length) p.scenes = MV.planScenes(p);
+    if (p.kind === 'drama') { if (n > 2 && !(p.scenes || []).length) { toast('🎞 먼저 ② 클립 넣기에서 클립을 넣어 주세요', 3000); n = 2; } }
+    else { if (n > 2 && !p.song) { toast('🎵 먼저 노래를 넣어 주세요'); n = 2; }
+      if (n === 3 && !p.scenes.length) p.scenes = MV.planScenes(p); }
     const was = S.view; p.step = n; S.view = 'stage'; save(); render();
     if (was !== 'stage') { try { history.pushState({ mv: 1 }, ''); } catch (e) { /* 괜찮음 */ } }
     g.scrollTo(0, 0);
@@ -268,7 +275,7 @@
   }
   function lyrAIText() {
     const p = S.p, own = MV.parseLyrics(p.lyricsRaw || '').lines.map(l => l.t).join('\n').trim();
-    return `[BK뮤비 · 노래 「${p.title || '제목 없음'}」 가사 받기]\n(이 메시지와 함께 노래 MP3 파일 하나를 첨부했어요)\n` +
+    return `[BK뮤드 · 노래 「${p.title || '제목 없음'}」 가사 받기]\n(이 메시지와 함께 노래 MP3 파일 하나를 첨부했어요)\n` +
       '첨부한 노래(MP3)를 듣고 가사를 들리는 대로 받아 적어 주세요.\n- 한 줄씩 나눠서, 줄마다 맨 앞에 그 줄을 부르기 시작하는 시간을 [분:초] 형식으로 붙여 주세요. 예: [00:15] 첫 줄 가사\n- 반주만 나오는 부분(간주)은 쓰지 마세요.\n- 한 줄은 화면 자막에 맞게 15자 안팎으로 짧게 나눠 주세요.\n- 인사말이나 설명 없이 시간과 가사만 써 주세요.' +
       (own ? '\n\n아래는 원래 가사예요. 이 글자 그대로 쓰고 시간만 맞춰 주세요:\n' + own : '');
   }
@@ -278,7 +285,7 @@
         <li>Gemini에서 <b>✏️ 새 채팅</b>을 누르고, 입력칸에 <b>예전 글이 남아 있으면 길게 눌러 전부 지우기 🧹</b></li>
         <li><b>＋ → 「${esc(S.p.title || '이 노래')}」 MP3 하나만</b> 올리기</li>
         <li>아래 <b>📋 복사 + Gemini 열기</b> → 입력칸에 <b>붙여넣기 → 보내기</b></li>
-        <li>받은 답을 <b>통째로 복사</b> → BK뮤비 가사 칸에 붙여넣기 → <b>✅ 가사 넣기</b></li></ol>
+        <li>받은 답을 <b>통째로 복사</b> → BK뮤드 가사 칸에 붙여넣기 → <b>✅ 가사 넣기</b></li></ol>
       <div class="field"><label>📋 복사되는 요청 글 <span class="muted">(맨 위에 노래 제목이 있어요)</span></label><textarea readonly style="min-height:150px;font-size:.82rem">${esc(t)}</textarea></div>
       <button class="btn main big" data-a="lyrAIgo">📋 복사 + Gemini 열기</button>
       <p class="muted">${S.p.lyricsRaw && S.p.lyricsRaw.trim() ? '가사 칸에 있는 가사도 함께 보내서 시간만 맞춰 달라고 해요.' : '가사 칸이 비어 있어서 <b>MP3만 듣고 가사를 뽑아 달라고</b> 해요.'}</p>`);
@@ -299,7 +306,7 @@
   function sceneText(i) {
     const p = S.p, sc = p.scenes[i], ly = MV.sceneLines(p, sc), lk = p.look || {}, vid = p.mode !== 'image';
     const what = sc.prompt || (ly.length ? `가사 「${ly.join(' / ')}」의 감정을 담은 장면` : (i === 0 ? '노래가 시작되는 첫 장면, 분위기를 보여 주는 풍경' : '가사 없이 반주만 나오는 부분, 분위기를 이어 주는 장면'));
-    return [`[장면 ${i + 1} / ${p.scenes.length} · ${p.title || 'BK뮤비'}]`, KR(p) ? KR_LINE : '', `${lk.style || '실사 시네마틱'} 스타일, ${ratioKo(p)} 화면.`,
+    return [`[장면 ${i + 1} / ${p.scenes.length} · ${p.title || 'BK뮤드'}]`, KR(p) ? KR_LINE : '', `${lk.style || '실사 시네마틱'} 스타일, ${ratioKo(p)} 화면.`,
       lk.mood ? `전체 분위기: ${lk.mood}.` : '', (!vid && lk.heroImg) ? '' : (lk.hero ? `주인공: ${lk.hero}.` : ''), !vid ? '주인공이 나오는 장면이면 이 대화방의 주인공(사진 속 사람)과 같은 얼굴 · 머리 · 옷으로 그려 주세요. 나이 · 성별 · 얼굴을 바꾸지 마세요.' : (lk.hero ? '모든 장면에서 같은 얼굴 · 같은 옷.' : ''),
       `장면: ${what}`,
       vid ? `${Math.round(sc.e - sc.s)}초 길이, 카메라가 천천히 움직이는 영화 같은 장면.` : `고화질 그림 한 장 (${ratioKo(p)}).`,
@@ -309,7 +316,7 @@
   function lyricsPlain(max) { const t = MV.parseLyrics(S.p.lyricsRaw || '').lines.map(l => l.t).join('\n').trim() || (S.p.lines || []).map(l => l.t).join('\n'); return t.length > max ? t.slice(0, max) + '\n…' : t; }
   function heroText() {
     const p = S.p, lk = p.look || {}, ly = lyricsPlain(1500);
-    return [`[BK뮤비 「${p.title || '뮤직비디오'}」 그림 방]`, '이 대화방에서 뮤직비디오 그림을 차례로 만들 거예요. 먼저 이 노래의 주인공을 정하고 그려 주세요.',
+    return [`[BK뮤드 「${p.title || '뮤직비디오'}」 그림 방]`, '이 대화방에서 뮤직비디오 그림을 차례로 만들 거예요. 먼저 이 노래의 주인공을 정하고 그려 주세요.',
       ly ? `\n[가사]\n${ly}\n` : '', `노래 분위기: ${lk.mood || '가사에 어울리게'} · 그림 느낌: ${lk.style || '실사 시네마틱'} · 화면: ${ratioKo(p)}`, KR(p) ? '등장인물은 한국 사람, 배경은 한국.' : '',
       lk.hero ? `주인공 조건 (꼭 지켜 주세요): ${lk.hero}` : '',
       '\n해 주실 일:', '① 가사를 읽고 노래에 어울리는 주인공을 한국어 한 줄로 정해 주세요 (나이대 · 성별 · 얼굴 느낌 · 머리 · 옷). 「주인공: …」 모양으로 한 줄만.',
@@ -320,12 +327,12 @@
   /* ChatGPT 「그림 방」 시작 글 — 내 사진을 주인공으로 */
   function heroShareText() {
     const p = S.p, lk = p.look || {};
-    return [`[BK뮤비 「${p.title || '뮤직비디오'}」 그림 방]`, '첨부한 사진 속 사람이 뮤직비디오 주인공이에요.', '얼굴 · 머리 · 옷을 그대로 유지해서, 제가 이 대화방에 보내는 장면 글마다 그림을 한 장씩 그려 주세요.',
+    return [`[BK뮤드 「${p.title || '뮤직비디오'}」 그림 방]`, '첨부한 사진 속 사람이 뮤직비디오 주인공이에요.', '얼굴 · 머리 · 옷을 그대로 유지해서, 제가 이 대화방에 보내는 장면 글마다 그림을 한 장씩 그려 주세요.',
       `${lk.style || '실사 시네마틱'} 스타일, ${ratioKo(p)}.`, KR(p) ? '등장인물은 한국 사람, 배경은 한국.' : '', '글자 · 로고는 넣지 않기.', '지금은 「알겠어요」라고만 대답하고, 장면 글을 받으면 그려 주세요.'].filter(Boolean).join('\n');
   }
   function planAIText() {
     const p = S.p, lk = p.look || {}, vid = p.mode !== 'image', N = p.scenes.length;
-    return `[BK뮤비 「${p.title || '제목 없음'}」 장면 기획 요청]\n노래 길이 ${fmt0(p.song.dur)}로 뮤직비디오를 만들어요. ${vid ? `구글 Flow로 ${p.clipLen}초짜리 영상 ${N}개` : `ChatGPT로 그림 ${N}장`}을 만들 거예요. 당신은 기획만 해 주세요 (그림은 그리지 마세요).\n` +
+    return `[BK뮤드 「${p.title || '제목 없음'}」 장면 기획 요청]\n노래 길이 ${fmt0(p.song.dur)}로 뮤직비디오를 만들어요. ${vid ? `구글 Flow로 ${p.clipLen}초짜리 영상 ${N}개` : `ChatGPT로 그림 ${N}장`}을 만들 거예요. 당신은 기획만 해 주세요 (그림은 그리지 마세요).\n` +
       `그림 느낌: ${lk.style || '실사 시네마틱'} · 화면: ${ratioKo(p)}${lk.mood ? `\n전체 분위기: ${lk.mood}` : ''}` + (lk.heroImg ? `\n주인공: 첨부한 사진 속 사람이에요${lk.hero ? ` (${lk.hero})` : ''}. 장면 설명에 나이 · 성별 · 얼굴 · 머리 · 옷을 새로 정하지 말고 그냥 「주인공」이라고만 써 주세요.` : (lk.hero ? `\n주인공: ${lk.hero}` : '')) + `\n\n` +
       `아래에 장면마다 그 시간에 나오는 가사를 적었어요. 노래 전체가 하나의 이야기처럼 이어지게, 장면마다 ${vid ? 'Flow에 넣을 영상' : 'ChatGPT에 넣을 그림'} 설명을 한국어 한두 문장으로 써 주세요.\n` +
       (KR(p) ? '- 모든 장면은 한국 사람 · 한국 배경으로 (한국 거리 · 집 · 자연, 간판은 한글)\n' : '') +
@@ -728,7 +735,7 @@
   }
 
   function download(url, name) { const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
-  /* 🎞 마지막으로 만든 영상 (BK뮤비 안에 보관 · 화면을 옮겨도 남아요) */
+  /* 🎞 마지막으로 만든 영상 (BK뮤드 안에 보관 · 화면을 옮겨도 남아요) */
   async function showLast() {
     const box = $('lastBox'), p = S.p; if (!box || !p) return;
     if (!p.mp4 || !p.mp4.file) { box.innerHTML = ''; return; }
@@ -748,7 +755,7 @@
     let lock = null; try { lock = await navigator.wakeLock.request('screen'); } catch (e) { /* 없어도 됨 */ }
     try {
       const r = await MV.exportMp4(p, S.q, (f, m) => { const b = $('expBar'), t = $('expMsg'); if (b) b.style.width = Math.round(f * 100) + '%'; if (t) t.textContent = m; }, ctl);
-      const name = (p.title || 'BK뮤비').replace(/[\\/:*?"<>|]/g, '') + '.mp4';
+      const name = (p.title || 'BK뮤드').replace(/[\\/:*?"<>|]/g, '') + '.mp4';
       const id = await MV.putFile(r.blob, name); if (p.mp4 && p.mp4.file) MV.delFile(p.mp4.file);
       p.mp4 = { file: id, name, size: r.blob.size, at: Date.now(), W: r.W, H: r.H, warning: r.warning || '' }; p.exported = Date.now(); save();
       S.lastBlob = r.blob; S.lastId = id; if (S.lastUrl) URL.revokeObjectURL(S.lastUrl); S.lastUrl = URL.createObjectURL(r.blob);
@@ -768,7 +775,7 @@
       case 'openP': return openP(v);
       case 'install': if (!INST) return installBox(); INST.prompt(); try { await INST.userChoice; } catch (e) { /* 취소 */ } INST = null; return installBox();
       case 'page': S.page = +v; await home(); return g.scrollTo(0, 0);
-      case 'delP': { const q = await MV.getProject(v); if (q && confirm(`「${q.title || '제목 없음'}」을(를) 지울까요?\n(이 뮤비에 넣은 노래 · 영상도 BK뮤비 안에서 지워져요)`)) { await MV.delProject(q); home(); } return; }
+      case 'delP': { const q = await MV.getProject(v); if (q && confirm(`「${q.title || '제목 없음'}」을(를) 지울까요?\n(이 뮤비에 넣은 노래 · 영상도 BK뮤드 안에서 지워져요)`)) { await MV.delProject(q); home(); } return; }
       case 'go': return go(v);
       case 'open': sheetClose(); if (el && el.dataset.next && p.step === 4) { p.fxSeen = 1; save(); } return go(v);
       case 'hub': return toHub();
@@ -813,7 +820,7 @@
       case 'scDel': if (p.locked) return toast('🔒 잠겨 있어요'); if (pinned(+v)) return; if (!confirm(`장면 ${+v + 1}의 사진 · 영상을 뺄까요? (칸과 시간은 그대로예요)`)) return; delScene(+v); save(); if (S.win != null) { winRender(); S.player.seek(p.scenes[+v].s + .05); } else render(); return toast('🗑 뺐어요');
       case 'heroPut': { if (p.look.heroLock && !confirm('고정한 주인공 사진을 바꿀까요?')) return; const [f2] = await pickFiles('image/*'); if (!f2) return; return setHero(f2); }
       case 'heroLock': p.look.heroLock = v === '1'; save(); render(); return toast(v === '1' ? '🔒 이 사진으로 주인공을 고정했어요' : '🔓 고정을 풀었어요');
-      case 'heroSave': { const bl = await MV.getFile(p.look.heroImg); if (!bl) return toast('사진을 찾을 수 없어요'); const u = URL.createObjectURL(bl), a2 = document.createElement('a'); a2.href = u; a2.download = (p.title || 'BK뮤비') + '_주인공.' + ((bl.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg')); document.body.appendChild(a2); a2.click(); a2.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); return toast('⬇ 휴대폰에 저장했어요 · Flow 재료에서 고르세요', 4000); }
+      case 'heroSave': { const bl = await MV.getFile(p.look.heroImg); if (!bl) return toast('사진을 찾을 수 없어요'); const u = URL.createObjectURL(bl), a2 = document.createElement('a'); a2.href = u; a2.download = (p.title || 'BK뮤드') + '_주인공.' + ((bl.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg')); document.body.appendChild(a2); a2.click(); a2.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); return toast('⬇ 휴대폰에 저장했어요 · Flow 재료에서 고르세요', 4000); }
       case 'capSpeed': p.cap.speed = v; linesChanged(); return render();
       case 'kr': p.look.kr = v === '1'; save(); return render();
       case 'heroCopy': p.look.heroTab = 'make'; save(); return copyOpen(heroText(), GPT_URL, '📋 주인공 그림 글을 복사했어요 · Flow(이미지)에 붙여넣기');
@@ -925,7 +932,7 @@
   });
   document.addEventListener('change', e => {
     const p = S.p; if (!p) return; if (MV.SONG && MV.SONG.change(e)) return; if (MV.TL.change(e)) return; const id = e.target.id, v = e.target.value;
-    if (id === 'fTitle' || id === 'fTitle2') { p.title = v.trim(); $('title').textContent = '🎬 ' + (p.title || 'BK뮤비'); }
+    if (id === 'fTitle' || id === 'fTitle2') { p.title = v.trim(); setTitle(p); }
     else if (id === 'fLyr') p.lyricsRaw = v;
     else if (id === 'fMood') p.look.mood = v.trim();
     else if (id === 'fHero') p.look.hero = v.trim();

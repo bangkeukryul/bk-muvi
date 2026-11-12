@@ -1,4 +1,4 @@
-/* mv-core.js — BK뮤비 데이터 · 저장(IndexedDB 'bk-muvi') · 공용 도구
+/* mv-core.js — BK뮤드 데이터 · 저장(IndexedDB 'bk-muvi') · 공용 도구
  *  - 작품(뮤비)마다: 노래 · 가사 줄 · 장면 칸 · 잠금 · 자막 모양 · 효과
  *  - 노래 · 영상 · 사진 파일은 'files' 칸에 따로 보관 (작품 글에는 열쇠만)
  */

@@ -51,7 +51,7 @@
       id: 'mv' + now, at: now, v: 3, title: '', step: 1, mk: null,
       song: null,              // { file, name, dur }
       lyricsRaw: '', lines: [],// [{ t, s, e }]  s/e: 초 (없으면 null)
-      ratio: '16:9', clipLen: 8, mode: 'image',
+      ratio: '9:16', clipLen: 8, mode: 'image',   // 쇼츠(세로)가 기본
       look: { mood: '', style: '실사 시네마틱', hero: '' },
       scenes: [],              // [{ id, s, e, file, kind, name, prompt, ok, off, fx, tr }]
       locked: false,

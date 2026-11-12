@@ -947,7 +947,7 @@
 
   MV.UI = { traySheet, setSong, S, toast, save, render, renderStage, go, copyOpen, chip, applyLyrics, sheet, sheetClose, pickFiles, thumbOf, putScene, delScene, tapShow, libPick, act: (a, v, el) => act(a, v, el), get p() { return S.p; } };
   g.addEventListener('DOMContentLoaded', () => {
-    $('homeBtn').addEventListener('click', () => home());
+    $('homeBtn').addEventListener('click', () => { if (S.p && !confirm('🏠 홈(내 작품 목록)으로 갈까요?\n지금까지 한 것은 저절로 저장돼요. 「이어 만들기」로 다시 열 수 있어요.')) return; home(); });
     home();
     // 노래 미리 듣기 칸: 열 때 파일 연결
     new MutationObserver(() => { const au = $('songAu'); if (au && !au.src && S.song) { au.src = URL.createObjectURL(S.song); } }).observe($('app'), { childList: true, subtree: true });

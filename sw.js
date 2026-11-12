@@ -1,5 +1,5 @@
 /* sw.js — BK뮤비 오프라인 캐시: 앱 파일은 인터넷 우선(업데이트 바로 반영) · 끊기면 저장본, 구글 폰트는 받아 둔 것 재사용 */
-const VERSION = 'bk-muvi-v24';
+const VERSION = 'bk-muvi-v25';
 const FONTS = 'bk-muvi-fonts';
 /* 같은 주소(bangkeukryul.github.io)를 다른 BK 앱과 함께 쓰므로, 지울 때는 BK뮤비 것('bk-muvi-'로 시작)만 지운다 */
 const APP = ['./', './index.html', './mv.css', './mp4mux.js', './fx.js', './mv-core.js', './mv-render.js', './mv-ui.js', './mv-tl.js', './mv-song.js', './dr-drama.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];

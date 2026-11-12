@@ -575,16 +575,16 @@
       </div>`;
   };
   /* ═════════ 6. ✨ 효과 (BK에딧 · BK쇼츠 효과 모음 fx.js) ═════════ */
-  const FXL = { len: 3, pos: 'mc', size: 1 };
+  const FXL = { len: 3, pos: 'mc', size: 1, mo: '' };
   const POS = { tl: [.2, .18], tc: [.5, .18], tr: [.8, .18], ml: [.2, .5], mc: [.5, .5], mr: [.8, .5], bl: [.2, .78], bc: [.5, .78], br: [.8, .78] };
   const tnow = () => +(S.player ? S.player.time() : 0).toFixed(2);
   function itemRows(kind) {
     const p = S.p, F = g.BKFX, A = p[kind] || [];
     if (!A.length) return '<p class="muted">아직 없어요.</p>';
     return `<div class="lines">${A.map((it, i) => {
-      const name = kind === 'efx' ? F.EFX[it.k] : kind === 'sfx' ? F.SFX[it.k] : (it.e || (it.b === 'bk' ? '🅑 BK 로고' : '🔤 ' + (it.t || '')));
+      const name = kind === 'efx' ? F.EFX[it.k] : kind === 'sfx' ? F.SFX[it.k] : (it.d ? ((F.DECOR[it.d] || ['🎨'])[0] + (it.t ? ' · ' + it.t : '')) : it.e || (it.b === 'bk' ? '🅑 BK 로고' : '🔤 ' + (it.t || ''))) + (it.mo && F.MOTIONS ? ' · ' + F.MOTIONS[it.mo] : '');
       const tm = kind === 'sfx' ? fmt(it.at) : `${fmt(it.start)}~${fmt(it.start + it.dur)}`;
-      return `<div class="ln"><span class="t">${tm}</span><span class="x">${esc(name)}</span><button class="btn sm" data-a="itPlay" data-v="${kind}:${i}">▶</button><button class="btn sm ghost" data-a="itDel" data-v="${kind}:${i}">🗑</button></div>`; }).join('')}</div>`;
+      return `<div class="ln${kind === 'stk' ? ' stkLn' : ''}"><span class="t">${tm}</span><span class="x">${esc(name)}${kind === 'stk' && it.path ? ' · 🎯 따라감' : ''}</span><button class="btn sm" data-a="itPlay" data-v="${kind}:${i}">▶</button>${kind === 'stk' && g.BKTRACK && isAdmin() ? `<button class="btn sm" data-trk="${i}">🎯 따라가기</button><button class="btn sm ghost" data-pin="${i}">📍 자리</button>${it.path ? `<button class="btn sm ghost" data-trkoff="${i}">↩</button>` : ''}` : ''}<button class="btn sm ghost" data-a="itDel" data-v="${kind}:${i}">🗑</button></div>`; }).join('')}</div>`;
   }
   const MORE = {};
   function more(a, list, cur, n, title) {
@@ -623,6 +623,8 @@
         <div class="field"><label>크기 · 얼마 동안</label><div class="chips">${[[.7, '작게'], [1, '보통'], [1.5, '크게']].map(a => chip('fxSize', a[0], FXL.size === a[0], a[1])).join('')} ${[[2, '2초'], [3, '3초'], [5, '5초']].map(a => chip('fxLen', a[0], FXL.len === a[0], a[1])).join('')}</div></div>
         <p class="muted">👇 누르면 📍 지금 위치에 들어가요</p>
         <div class="emo">${F.EMOJI.slice(0, 8).map(e => `<button type="button" data-a="stkAdd" data-v="${e}">${e}</button>`).join('')}</div><button class="btn sm moreBtn" data-a="moreSheet" data-v="stk">＋ 스티커 더 보기 (${F.EMOJI.length})</button>
+        <div class="field"><label>🌀 움직임 <span class="muted">(새로 넣는 스티커에)</span></label><div class="chips">${Object.entries(F.MOTIONS || {}).map(a => chip('fxMo', a[0], FXL.mo === a[0], a[1])).join('')}</div></div>
+        ${F.DECOR ? `<p class="muted" style="margin:10px 0 4px">🎨 꾸밈 스티커 — 💬 말풍선 · 💭 생각 풍선 · 🎀 리본 · 💥 팡은 글씨를 넣을 수 있어요. 넣은 뒤 아래 목록의 <b>🎯 따라가기</b>로 사람을 따라가게 해요</p><div class="chips decorChips">${Object.entries(F.DECOR).map(a => `<button type="button" class="chip" data-a="stkAdd" data-v="d:${a[0]}">${a[1][0]}</button>`).join('')}</div>` : ''}
         <div class="row" style="margin-top:6px"><button class="btn" data-a="stkAdd" data-v="b:text">🔤 글씨 상자</button><button class="btn" data-a="stkAdd" data-v="b:bk">🅑 BK 로고</button></div>
         <div class="sub"><h3>들어간 스티커</h3>${itemRows('stk')}</div>
       </div>
@@ -658,10 +660,13 @@
       case 'fxLen': FXL.len = +v; return renderStage();
       case 'fxPos': FXL.pos = v; return renderStage();
       case 'fxSize': FXL.size = +v; return renderStage();
+      case 'fxMo': FXL.mo = v; return renderStage();
       case 'efxAdd': { const d = FXL.len ? Math.min(FXL.len, dur - t) : dur - t; p.efx.push({ k: v, start: t, dur: F.EFX_DUR[v] && FXL.len > F.EFX_DUR[v] ? F.EFX_DUR[v] : Math.max(.3, d) }); toast(`${F.EFX[v]} · ${fmt(t)}에 넣었어요`); return fxRefresh(); }
       case 'efxChorus': { const L = p.lines || []; let n = 0; L.forEach((l, i) => { if (l.sec === 'chorus' && l.s != null && (!L[i - 1] || L[i - 1].sec !== 'chorus')) { p.efx.push({ k: v, start: l.s, dur: F.EFX_DUR[v] || .8 }); n++; } }); toast(n ? `🎤 후렴 ${n}곳에 넣었어요` : '후렴을 못 찾았어요'); return fxRefresh(); }
       case 'stkAdd': { const [x, y] = POS[FXL.pos], it = { start: t, dur: Math.min(FXL.len || 3, dur - t), x, y, size: FXL.size };
-        if (v.startsWith('b:')) { it.b = v.slice(2); if (it.b === 'text') { const tx = prompt('상자에 넣을 글씨', ''); if (!tx) return; it.t = tx; } } else it.e = v;
+        if (v.startsWith('b:')) { it.b = v.slice(2); if (it.b === 'text') { const tx = prompt('상자에 넣을 글씨', ''); if (!tx) return; it.t = tx; } }
+        else if (v.startsWith('d:')) { it.d = v.slice(2); const D = F.DECOR[it.d]; if (D && D[1]) { const tx = prompt('넣을 글씨', D[2] || ''); if (tx === null) return; it.t = tx || D[2]; } } else it.e = v;
+        if (FXL.mo) it.mo = FXL.mo;
         p.stk.push(it); toast('😀 스티커를 넣었어요 · ' + fmt(t)); return fxRefresh(); }
       case 'sfxAdd': S.player.sfx(v); p.sfx.push({ k: v, at: t }); p.sfx.sort((a2, b2) => a2.at - b2.at); toast(`${F.SFX[v]} · ${fmt(t)}에 넣었어요`); return fxRefresh();
       case 'sfxVol': p.fx.sfxVol = +v; return fxRefresh();

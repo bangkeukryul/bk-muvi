@@ -5,6 +5,7 @@
 ## 이 앱
 - **대문**: 「＋ 새로 만들기」 → 🎵 뮤직비디오 / 🎭 드라마. 작품에 `kind: 'drama'`가 있으면 드라마.
 - **🎭 드라마 모드 = `dr-drama.js`** (Bang Song Studio의 pc-drama.js를 가져와 휴대폰에 맞게 다듬음): ① 기획(스킬 k-drama-longform-master-v3 요청 글 · 자막.md · 칼컷표.md · 브금.md 보관) → ② 클립 넣기(여러 개 · 폴더째 · 🗂 내 보관함 · 이름 순서 · 칼컷) → ③ 자막(자막.md를 (클립 N) 번호대로 · 자막 모양 15가지 = mv-render.js `boxCap`) → ④ 효과 · ⑤ 편집은 뮤직비디오 것 그대로. 클립 소리를 이어 붙인 WAV를 노래 자리에 넣어 미리 보기 · MP4가 그대로 작동. mv-ui.js는 `g.BKDRAMA`(labels · body · done · status)로만 연결.
+- ✨ `mu-auto.js` 음악 자동 맞추기(3단계 ② 화면 · 4단계 효과 맨 위 `#pcAuto`) · 🎯 `mu-track.js` 스티커/말풍선 사람 따라가기(`it.path`, fx.js drawSticker) — 둘 다 Bang Song Studio에서 가져옴 · 관리자 전용. fx.js는 BSS 판(꾸밈 스티커 DECOR · 움직임 MOTIONS 포함).
 - 맨 위 바: `setTitle()` → 🎵 뮤직비디오 / 🎭 드라마 표시 + 제목 · 🏠 홈으로.
 - PC 크롬(1024px 이상)은 넓은 화면(`body.pc`, v23).
 - 노래 한 곡으로 뮤직비디오 한 편을 만드는 앱. 큰 단계 5개를 차례로: ① 🎼 내 노래 만들기(수노) → ② 🎵 노래 · 가사 · 장면 넣기 → ③ 🎬 노래 · 장면 맞추기(① 채우기 = BK쇼츠 음악 맞추기 모양 · ② 음악(자막) · ③ 잠금) → ④ ✨ 효과 → ⑤ ✂️ 최종 편집(화면 · 음악 · 자막 · 효과 줄) · 💾 MP4.

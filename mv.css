@@ -394,3 +394,12 @@ body.pc .capPop{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
 .capPop>h4,.capPop>.grpH{grid-column:1/-1;margin:6px 0 0}
 details.help summary{cursor:pointer;color:var(--sub);font-weight:700;font-size:.85rem}details.help p{font-size:.84rem;line-height:1.6}
 .capGrp{grid-column:1/-1;font-weight:900;font-size:.85rem;margin:6px 0 0}
+/* ✨ 음악 자동 맞추기 · 🎯 따라가기 (BK뮤드 v26) */
+.pcaCard{border:2px solid #f9a8d4;border-radius:16px;padding:10px 12px;margin:0 0 12px;background:linear-gradient(180deg,#fdf2f8,#fff)}
+.pcaCard>summary{font-weight:900;font-size:1rem;cursor:pointer;padding:4px 0}
+.pcsTag{font-size:.7rem;font-weight:800;color:#fff;background:var(--p);border-radius:999px;padding:1px 7px;margin-left:4px;vertical-align:middle}
+.trkWait{outline:4px dashed #d4537e!important;outline-offset:-4px;cursor:crosshair!important}
+.trkBar{position:fixed;left:50%;top:64px;transform:translateX(-50%);z-index:300;background:#1e293bee;color:#fff;padding:10px 14px;border-radius:14px;font-weight:800;font-size:.88rem;box-shadow:0 8px 24px #0004;display:flex;gap:10px;align-items:center;width:max-content;max-width:92vw}
+.trkBar button{border:0;border-radius:10px;padding:6px 10px;font-weight:800}
+.decorChips .chip{font-size:.82rem}
+.ln.stkLn{flex-wrap:wrap;row-gap:6px}.ln.stkLn .x{flex:1 1 calc(100% - 100px);min-width:0}.ln.stkLn .btn{flex:none}
